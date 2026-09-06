@@ -1,9 +1,6 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { DuolingoButton } from '@/components/DuolingoButton';
-import { DuolingoChoiceCard } from '@/components/DuolingoChoiceCard';
-import { ActivePassCard } from '@/components/ActivePassCard';
 import { CheckInRecord, CheckInScenario, TeacherAbsence, Academy } from '@/types';
 import {
   fetchAbsences,
@@ -11,19 +8,6 @@ import {
   checkOutStudent,
   fetchCheckins,
 } from '@/lib/api';
-import {
-  CalendarDays,
-  UserX,
-  BookOpen,
-  ArrowRight,
-  ArrowLeft,
-  Search,
-  Check,
-  Sparkles,
-  School,
-  AlertCircle,
-} from 'lucide-react';
-import confetti from 'canvas-confetti';
 import { clsx } from 'clsx';
 
 const ACADEMIES: Academy[] = [
@@ -39,12 +23,10 @@ const ACADEMIES: Academy[] = [
 ];
 
 export default function StudentCheckInPage() {
-  // Wizard state: 1 = Reason, 2 = Period & Teacher, 3 = Student Details, 4 = Active Pass
-  const [step, setStep] = useState<1 | 2 | 3>(1);
   const [scenario, setScenario] = useState<CheckInScenario>('DEFAULT_STUDY_HALL');
   const [selectedPeriod, setSelectedPeriod] = useState<number>(4);
   const [absentTeachers, setAbsentTeachers] = useState<TeacherAbsence[]>([]);
-  const [selectedTeacher, setSelectedTeacher] = useState<TeacherAbsence | null>(null);
+  const [selectedTeacherId, setSelectedTeacherId] = useState<string>('');
   const [teacherSearch, setTeacherSearch] = useState('');
 
   // Form info
@@ -53,12 +35,12 @@ export default function StudentCheckInPage() {
   const [studentId, setStudentId] = useState('');
   const [academy, setAcademy] = useState<Academy>('ATCS');
   const [grade, setGrade] = useState<'9' | '10' | '11' | '12'>('11');
-  const [tableNumber, setTableNumber] = useState('Table 4');
 
   // Active pass state
   const [activePass, setActivePass] = useState<CheckInRecord | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+  const [elapsedMinutes, setElapsedMinutes] = useState(0);
 
   // Load active pass from localStorage if exists
   useEffect(() => {
@@ -75,41 +57,43 @@ export default function StudentCheckInPage() {
     }
   }, []);
 
-  // Fetch absences when step 2 is active
+  // Fetch absences
   useEffect(() => {
     fetchAbsences().then((list) => {
       setAbsentTeachers(list);
-      if (list.length > 0 && !selectedTeacher) {
-        // default select first teacher absent for current period if any
+      if (list.length > 0 && !selectedTeacherId) {
         const match = list.find((t) => t.periods.includes(selectedPeriod)) || list[0];
-        setSelectedTeacher(match);
+        if (match) setSelectedTeacherId(match.id);
       }
     });
   }, [selectedPeriod]);
 
-  const handleNextStep = () => {
-    setErrorMsg('');
-    if (step === 1) {
-      setStep(2);
-    } else if (step === 2) {
-      if (scenario === 'TEACHER_ABSENT' && !selectedTeacher) {
-        setErrorMsg('Please select your absent teacher from the list.');
-        return;
-      }
-      setStep(3);
-    }
-  };
+  // Elapsed timer for active pass
+  useEffect(() => {
+    if (!activePass) return;
+    const start = new Date(activePass.checkInTime).getTime();
 
-  const handlePrevStep = () => {
-    setErrorMsg('');
-    if (step === 3) setStep(2);
-    else if (step === 2) setStep(1);
-  };
+    const update = () => {
+      const now = Date.now();
+      const mins = Math.floor((now - start) / 60000);
+      setElapsedMinutes(mins);
+    };
+
+    update();
+    const interval = setInterval(update, 30000);
+    return () => clearInterval(interval);
+  }, [activePass]);
 
   const handleCheckInSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!studentName.trim()) {
       setErrorMsg('Please enter your full name');
+      return;
+    }
+
+    const teacher = absentTeachers.find((t) => t.id === selectedTeacherId);
+    if (scenario === 'TEACHER_ABSENT' && !teacher) {
+      setErrorMsg('Please select an absent teacher');
       return;
     }
 
@@ -125,385 +109,288 @@ export default function StudentCheckInPage() {
         grade,
         period: selectedPeriod,
         scenario,
-        absentTeacherId: scenario === 'TEACHER_ABSENT' ? selectedTeacher?.id : undefined,
-        absentTeacherName: scenario === 'TEACHER_ABSENT' ? selectedTeacher?.teacherName : undefined,
-        tableNumber: tableNumber || `Table ${Math.floor(1 + Math.random() * 12)}`,
+        absentTeacherId: scenario === 'TEACHER_ABSENT' ? teacher?.id : undefined,
+        absentTeacherName: scenario === 'TEACHER_ABSENT' ? teacher?.teacherName : undefined,
       });
 
       setActivePass(pass);
       localStorage.setItem('bca_upper_cafe_active_pass_id', pass.id);
-
-      try {
-        confetti({
-          particleCount: 100,
-          spread: 80,
-          origin: { y: 0.5 },
-          colors: ['#C5B358', '#E5D68A', '#10B981', '#ffffff'],
-        });
-      } catch (_err) {}
     } catch (_err) {
-      setErrorMsg('Failed to check in. Please try again or ask study hall monitor.');
+      setErrorMsg('Failed to check in. Please try again.');
     } finally {
       setSubmitting(false);
     }
   };
 
-  const handleCheckOut = async (id: string) => {
-    await checkOutStudent(id);
-    setActivePass(null);
-    localStorage.removeItem('bca_upper_cafe_active_pass_id');
-    setStep(1);
+  const handleCheckOut = async () => {
+    if (!activePass) return;
+    setSubmitting(true);
+    try {
+      await checkOutStudent(activePass.id);
+      setActivePass(null);
+      localStorage.removeItem('bca_upper_cafe_active_pass_id');
+      setStudentName('');
+      setStudentEmail('');
+      setStudentId('');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
-  // If student already has an active pass, render pass view
-  if (activePass) {
-    return (
-      <div className="max-w-xl mx-auto px-4 py-8 sm:py-12 w-full">
-        <ActivePassCard pass={activePass} onCheckOut={handleCheckOut} />
-      </div>
-    );
-  }
-
-  // Filter absent teachers based on period and search query
   const filteredTeachers = absentTeachers.filter((t) => {
     const matchesPeriod = t.periods.includes(selectedPeriod);
     const matchesQuery =
       t.teacherName.toLowerCase().includes(teacherSearch.toLowerCase()) ||
-      t.department.toLowerCase().includes(teacherSearch.toLowerCase()) ||
-      (t.room && t.room.toLowerCase().includes(teacherSearch.toLowerCase()));
+      t.department.toLowerCase().includes(teacherSearch.toLowerCase());
     return matchesPeriod && matchesQuery;
   });
 
   return (
-    <div className="max-w-2xl mx-auto px-4 py-8 sm:py-10 w-full flex-1 flex flex-col justify-between">
-      {/* Top Header & Duolingo-style Progress Bar */}
-      <div>
-        <div className="flex items-center justify-between gap-4 mb-4">
-          <div className="flex items-center gap-2">
-            {step > 1 && (
-              <button
-                onClick={handlePrevStep}
-                className="w-9 h-9 rounded-xl flex items-center justify-center bg-[#151B23] border border-[#2C3442] text-[#8B949E] hover:text-[#F0F6FC] hover:border-[#C5B358]/50 transition-colors"
-              >
-                <ArrowLeft className="w-4 h-4" />
-              </button>
-            )}
-            <span className="text-xs font-black uppercase tracking-wider text-[#C5B358]">
-              Step {step} of 3
+    <div className="max-w-xl mx-auto px-4 py-8 sm:py-12 w-full">
+      {activePass ? (
+        // Clean Active Pass View
+        <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm">
+          <div className="flex items-center justify-between border-b border-slate-100 pb-4 mb-5">
+            <div className="flex items-center gap-2">
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-600" />
+              <span className="text-xs font-semibold uppercase tracking-wider text-emerald-800">
+                Currently Checked In
+              </span>
+            </div>
+            <span className="text-xs font-bold bg-slate-100 text-slate-700 px-2 py-0.5 rounded">
+              Period {activePass.period}
             </span>
           </div>
-          <span className="text-xs font-semibold text-[#8B949E]">
-            {step === 1 && 'Select Reason'}
-            {step === 2 && 'Period & Teacher'}
-            {step === 3 && 'Student Details'}
-          </span>
-        </div>
 
-        {/* Chunky Progress Line */}
-        <div className="w-full bg-[#1F2631] h-3.5 rounded-full overflow-hidden p-0.5 border border-[#2C3442] mb-8">
-          <div
-            className="h-full bg-gradient-to-r from-[#C5B358] to-[#E5D68A] rounded-full transition-all duration-300 shadow-sm"
-            style={{ width: `${(step / 3) * 100}%` }}
-          />
-        </div>
+          <div className="mb-6">
+            <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
+              {activePass.studentName}
+            </h1>
+            <p className="text-sm text-slate-500 mt-1">
+              {activePass.academy} • Grade {activePass.grade} {activePass.studentId ? `• ID #${activePass.studentId}` : ''}
+            </p>
+          </div>
 
-        {/* STEP 1: Reason Selection */}
-        {step === 1 && (
-          <div className="space-y-6">
-            <div className="text-center sm:text-left">
-              <h1 className="text-2xl sm:text-3xl font-black text-[#F0F6FC] tracking-tight">
-                Why are you visiting Upper Cafe today?
-              </h1>
-              <p className="text-sm text-[#8B949E] mt-1.5 font-medium">
-                Choose your check-in reason to comply with BCA attendance policies.
-              </p>
+          <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 space-y-2 text-sm mb-6">
+            <div className="flex justify-between">
+              <span className="text-slate-500">Reason:</span>
+              <span className="font-semibold text-slate-800">
+                {activePass.scenario === 'DEFAULT_STUDY_HALL'
+                  ? 'Scheduled Study Hall'
+                  : `Absence: ${activePass.absentTeacherName || 'Class'}`}
+              </span>
             </div>
-
-            <div className="space-y-3.5 pt-2">
-              <DuolingoChoiceCard
-                selected={scenario === 'DEFAULT_STUDY_HALL'}
-                onClick={() => setScenario('DEFAULT_STUDY_HALL')}
-                icon={<BookOpen className="w-7 h-7" />}
-                title="Scheduled Study Hall"
-                description="I have Upper Cafe Study Hall on my Genesis schedule for this period."
-                badge="Regular"
-              />
-
-              <DuolingoChoiceCard
-                selected={scenario === 'TEACHER_ABSENT'}
-                onClick={() => setScenario('TEACHER_ABSENT')}
-                icon={<UserX className="w-7 h-7" />}
-                title="My Teacher is Absent"
-                description="My class teacher is marked absent on the BCA absence list, and class reports to Upper Cafe."
-                badge="Absence Coverage"
-              />
+            <div className="flex justify-between">
+              <span className="text-slate-500">Checked in at:</span>
+              <span className="font-semibold text-slate-800">
+                {new Date(activePass.checkInTime).toLocaleTimeString([], {
+                  hour: '2-digit',
+                  minute: '2-digit',
+                })}
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-slate-500">Duration:</span>
+              <span className="font-semibold text-slate-800">{elapsedMinutes} minutes</span>
             </div>
           </div>
-        )}
 
-        {/* STEP 2: Period & Teacher Selection */}
-        {step === 2 && (
-          <div className="space-y-6">
+          <button
+            type="button"
+            disabled={submitting}
+            onClick={handleCheckOut}
+            className="w-full bg-slate-900 hover:bg-slate-800 text-white font-semibold py-2.5 px-4 rounded-lg text-sm transition-colors cursor-pointer"
+          >
+            {submitting ? 'Checking Out...' : 'Check Out of Upper Cafe'}
+          </button>
+        </div>
+      ) : (
+        // Clean Light Check-In Form
+        <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm">
+          <div className="border-b border-slate-100 pb-4 mb-6">
+            <h1 className="text-xl font-bold text-slate-900 tracking-tight">
+              Upper Cafe Study Hall Check-In
+            </h1>
+            <p className="text-xs text-slate-500 mt-1">
+              Check in for your scheduled study hall or absent teacher coverage.
+            </p>
+          </div>
+
+          <form onSubmit={handleCheckInSubmit} className="space-y-5">
+            {/* Reason Selection */}
             <div>
-              <h1 className="text-2xl sm:text-3xl font-black text-[#F0F6FC] tracking-tight">
-                What period is it?
-              </h1>
-              <p className="text-sm text-[#8B949E] mt-1.5 font-medium">
-                Tap the period number you are checking in for.
-              </p>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-2">
+                1. Select Reason
+              </label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                <button
+                  type="button"
+                  onClick={() => setScenario('DEFAULT_STUDY_HALL')}
+                  className={clsx(
+                    'p-3 rounded-lg border text-left transition-colors cursor-pointer',
+                    scenario === 'DEFAULT_STUDY_HALL'
+                      ? 'border-amber-500 bg-amber-50/50 text-slate-900'
+                      : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-700'
+                  )}
+                >
+                  <div className="font-semibold text-sm">Scheduled Study Hall</div>
+                  <div className="text-xs text-slate-500 mt-0.5">Assigned on Genesis schedule</div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setScenario('TEACHER_ABSENT')}
+                  className={clsx(
+                    'p-3 rounded-lg border text-left transition-colors cursor-pointer',
+                    scenario === 'TEACHER_ABSENT'
+                      ? 'border-amber-500 bg-amber-50/50 text-slate-900'
+                      : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-700'
+                  )}
+                >
+                  <div className="font-semibold text-sm">Teacher is Absent</div>
+                  <div className="text-xs text-slate-500 mt-0.5">Class covered in Upper Cafe</div>
+                </button>
+              </div>
             </div>
 
-            {/* Chunky 3D Period Buttons */}
-            <div className="grid grid-cols-5 sm:grid-cols-9 gap-2">
-              {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((p) => {
-                const isSelected = selectedPeriod === p;
-                return (
+            {/* Period Selection */}
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-2">
+                2. Period
+              </label>
+              <div className="grid grid-cols-9 gap-1.5">
+                {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((p) => (
                   <button
                     key={p}
                     type="button"
                     onClick={() => setSelectedPeriod(p)}
                     className={clsx(
-                      'flex flex-col items-center justify-center py-3 rounded-2xl font-black text-lg transition-all border-2 select-none active:translate-y-[2px]',
-                      'border-b-[4px]',
-                      isSelected
-                        ? 'bg-[#C5B358] text-[#0B0E14] border-[#7A6B25] shadow-md shadow-[#C5B358]/20'
-                        : 'bg-[#151B23] text-[#F0F6FC] border-[#2C3442] border-b-[#19202A] hover:border-[#3E4A5C]'
+                      'py-2 rounded-md font-bold text-xs transition-colors cursor-pointer border',
+                      selectedPeriod === p
+                        ? 'bg-slate-900 text-white border-slate-900'
+                        : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100'
                     )}
                   >
-                    <span className="text-[10px] uppercase font-bold tracking-widest opacity-70">
-                      P
-                    </span>
-                    <span>{p}</span>
+                    P{p}
                   </button>
-                );
-              })}
+                ))}
+              </div>
             </div>
 
             {/* If Teacher Absent, select teacher */}
             {scenario === 'TEACHER_ABSENT' && (
-              <div className="pt-3 space-y-4">
-                <div className="flex items-center justify-between">
-                  <label className="text-sm font-black uppercase tracking-wider text-[#C5B358]">
-                    Select Absent Teacher for Period {selectedPeriod}
-                  </label>
-                  <span className="text-xs text-[#8B949E]">
-                    {filteredTeachers.length} absent in P{selectedPeriod}
-                  </span>
-                </div>
-
-                {/* Quick Search */}
-                <div className="relative">
-                  <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#8B949E]" />
-                  <input
-                    type="text"
-                    value={teacherSearch}
-                    onChange={(e) => setTeacherSearch(e.target.value)}
-                    placeholder="Search by teacher name or department..."
-                    className="w-full bg-[#151B23] border-2 border-[#2C3442] focus:border-[#C5B358] rounded-xl pl-10 pr-4 py-2.5 text-sm text-[#F0F6FC] outline-none transition-colors"
-                  />
-                </div>
-
-                {/* Teacher List */}
-                <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
-                  {filteredTeachers.length === 0 ? (
-                    <div className="p-5 text-center bg-[#151B23]/70 rounded-2xl border border-dashed border-[#2C3442]">
-                      <AlertCircle className="w-6 h-6 text-[#8B949E] mx-auto mb-1.5" />
-                      <p className="text-sm font-bold text-[#F0F6FC]">
-                        No absent teachers listed for Period {selectedPeriod}
-                      </p>
-                      <p className="text-xs text-[#8B949E] mt-1">
-                        Try selecting another period or view the full list in the Absent Teachers tab.
-                      </p>
-                    </div>
-                  ) : (
-                    filteredTeachers.map((t) => {
-                      const isTeacherSelected = selectedTeacher?.id === t.id;
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-2">
+                  3. Select Absent Teacher (Period {selectedPeriod})
+                </label>
+                {filteredTeachers.length > 0 ? (
+                  <div className="space-y-1.5 max-h-48 overflow-y-auto border border-slate-200 rounded-lg p-1.5">
+                    {filteredTeachers.map((t) => {
+                      const isSel = selectedTeacherId === t.id;
                       return (
                         <div
                           key={t.id}
-                          onClick={() => setSelectedTeacher(t)}
+                          onClick={() => setSelectedTeacherId(t.id)}
                           className={clsx(
-                            'p-3.5 rounded-xl border-2 transition-all cursor-pointer flex items-center justify-between gap-3',
-                            'border-b-[3px]',
-                            isTeacherSelected
-                              ? 'bg-[#1F2631] border-[#C5B358] border-b-[#7A6B25] text-[#C5B358]'
-                              : 'bg-[#151B23] border-[#2C3442] border-b-[#1A202A] text-[#F0F6FC] hover:border-[#3D4758]'
+                            'p-2.5 rounded-md text-xs cursor-pointer flex justify-between items-center transition-colors',
+                            isSel
+                              ? 'bg-amber-100 text-slate-900 font-semibold'
+                              : 'hover:bg-slate-50 text-slate-700'
                           )}
                         >
                           <div>
-                            <div className="font-extrabold text-sm">{t.teacherName}</div>
-                            <div className="text-xs text-[#8B949E]">
-                              {t.department} {t.room ? `• ${t.room}` : ''}
-                            </div>
+                            <div>{t.teacherName}</div>
+                            <div className="text-[11px] text-slate-500">{t.department}</div>
                           </div>
-                          <div className="flex items-center gap-1.5">
-                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#0B0E14] text-[#E5D68A] border border-[#2C3442]">
-                              P{t.periods.join(', ')}
-                            </span>
-                            {isTeacherSelected && <Check className="w-4 h-4 text-[#C5B358]" />}
-                          </div>
+                          <span className="text-[10px] text-slate-500">Periods {t.periods.join(', ')}</span>
                         </div>
                       );
-                    })
-                  )}
-                </div>
+                    })}
+                  </div>
+                ) : (
+                  <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-500">
+                    No teacher absences listed specifically for Period {selectedPeriod}.
+                  </div>
+                )}
               </div>
             )}
-          </div>
-        )}
 
-        {/* STEP 3: Student Details */}
-        {step === 3 && (
-          <form onSubmit={handleCheckInSubmit} className="space-y-5">
-            <div>
-              <h1 className="text-2xl sm:text-3xl font-black text-[#F0F6FC] tracking-tight">
-                Almost there! Who is checking in?
-              </h1>
-              <p className="text-sm text-[#8B949E] mt-1.5 font-medium">
-                Enter your student details to generate your official study hall pass.
-              </p>
-            </div>
+            {/* Student Details */}
+            <div className="space-y-3 pt-1">
+              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600">
+                {scenario === 'TEACHER_ABSENT' ? '4.' : '3.'} Student Details
+              </label>
 
-            <div className="space-y-4 pt-1">
               <div>
-                <label className="block text-xs font-black uppercase tracking-wider text-[#8B949E] mb-1.5">
-                  Full Name <span className="text-red-400">*</span>
-                </label>
                 <input
                   type="text"
                   required
                   value={studentName}
                   onChange={(e) => setStudentName(e.target.value)}
-                  placeholder="e.g. Alex Rivera"
-                  className="w-full bg-[#151B23] border-2 border-[#2C3442] focus:border-[#C5B358] rounded-xl px-4 py-3 text-sm text-[#F0F6FC] outline-none transition-colors"
+                  placeholder="Full Name *"
+                  className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-slate-400"
                 />
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-black uppercase tracking-wider text-[#8B949E] mb-1.5">
-                    BCA Email or ID #
-                  </label>
-                  <input
-                    type="text"
-                    value={studentEmail}
-                    onChange={(e) => setStudentEmail(e.target.value)}
-                    placeholder="e.g. aleriv26@bergen.org"
-                    className="w-full bg-[#151B23] border-2 border-[#2C3442] focus:border-[#C5B358] rounded-xl px-4 py-3 text-sm text-[#F0F6FC] outline-none transition-colors"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-black uppercase tracking-wider text-[#8B949E] mb-1.5">
-                    Table / Seat
-                  </label>
-                  <input
-                    type="text"
-                    value={tableNumber}
-                    onChange={(e) => setTableNumber(e.target.value)}
-                    placeholder="Table 4"
-                    className="w-full bg-[#151B23] border-2 border-[#2C3442] focus:border-[#C5B358] rounded-xl px-4 py-3 text-sm text-[#F0F6FC] outline-none transition-colors"
-                  />
-                </div>
+              <div className="grid grid-cols-2 gap-2.5">
+                <input
+                  type="email"
+                  value={studentEmail}
+                  onChange={(e) => setStudentEmail(e.target.value)}
+                  placeholder="BCA Email (@bergen.org)"
+                  className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-slate-400"
+                />
+                <input
+                  type="text"
+                  value={studentId}
+                  onChange={(e) => setStudentId(e.target.value)}
+                  placeholder="Student ID #"
+                  className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-slate-400"
+                />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-black uppercase tracking-wider text-[#8B949E] mb-1.5">
-                    Academy
-                  </label>
-                  <select
-                    value={academy}
-                    onChange={(e) => setAcademy(e.target.value as Academy)}
-                    className="w-full bg-[#151B23] border-2 border-[#2C3442] focus:border-[#C5B358] rounded-xl px-3 py-3 text-sm text-[#F0F6FC] outline-none transition-colors"
-                  >
-                    {ACADEMIES.map((a) => (
-                      <option key={a} value={a}>
-                        {a}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+              <div className="grid grid-cols-2 gap-2.5">
+                <select
+                  value={academy}
+                  onChange={(e) => setAcademy(e.target.value as Academy)}
+                  className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-900 focus:outline-none focus:border-slate-400"
+                >
+                  {ACADEMIES.map((a) => (
+                    <option key={a} value={a}>
+                      {a}
+                    </option>
+                  ))}
+                </select>
 
-                <div>
-                  <label className="block text-xs font-black uppercase tracking-wider text-[#8B949E] mb-1.5">
-                    Grade
-                  </label>
-                  <select
-                    value={grade}
-                    onChange={(e) => setGrade(e.target.value as any)}
-                    className="w-full bg-[#151B23] border-2 border-[#2C3442] focus:border-[#C5B358] rounded-xl px-3 py-3 text-sm text-[#F0F6FC] outline-none transition-colors"
-                  >
-                    <option value="9">Freshman (Grade 9)</option>
-                    <option value="10">Sophomore (Grade 10)</option>
-                    <option value="11">Junior (Grade 11)</option>
-                    <option value="12">Senior (Grade 12)</option>
-                  </select>
-                </div>
+                <select
+                  value={grade}
+                  onChange={(e) => setGrade(e.target.value as any)}
+                  className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-900 focus:outline-none focus:border-slate-400"
+                >
+                  <option value="9">Grade 9</option>
+                  <option value="10">Grade 10</option>
+                  <option value="11">Grade 11</option>
+                  <option value="12">Grade 12</option>
+                </select>
               </div>
             </div>
 
-            {/* Pass preview summary */}
-            <div className="p-4 rounded-2xl bg-[#151B23] border border-[#2C3442] text-xs space-y-1.5">
-              <div className="flex justify-between">
-                <span className="text-[#8B949E]">Checking into:</span>
-                <span className="font-extrabold text-[#F0F6FC]">
-                  Upper Cafe • Period {selectedPeriod}
-                </span>
+            {errorMsg && (
+              <div className="p-2.5 rounded-lg bg-red-50 border border-red-200 text-red-700 text-xs font-medium">
+                {errorMsg}
               </div>
-              <div className="flex justify-between">
-                <span className="text-[#8B949E]">Reason:</span>
-                <span className="font-extrabold text-[#C5B358]">
-                  {scenario === 'DEFAULT_STUDY_HALL'
-                    ? 'Scheduled Study Hall'
-                    : `Absence: ${selectedTeacher?.teacherName || 'Teacher'}`}
-                </span>
-              </div>
-            </div>
+            )}
+
+            <button
+              type="submit"
+              disabled={submitting}
+              className="w-full bg-slate-900 hover:bg-slate-800 text-white font-semibold py-2.5 px-4 rounded-lg text-sm transition-colors cursor-pointer"
+            >
+              {submitting ? 'Checking In...' : 'Confirm Check-In'}
+            </button>
           </form>
-        )}
-
-        {errorMsg && (
-          <div className="mt-4 p-3.5 rounded-xl bg-red-950/50 border border-red-800 text-red-300 text-xs font-semibold flex items-center gap-2">
-            <AlertCircle className="w-4 h-4 shrink-0" />
-            <span>{errorMsg}</span>
-          </div>
-        )}
-      </div>
-
-      {/* Bottom Sticky Action Bar with Duolingo Buttons */}
-      <div className="pt-8 border-t border-[#2C3442] mt-8 flex items-center justify-between gap-4">
-        {step > 1 ? (
-          <DuolingoButton variant="secondary" size="lg" onClick={handlePrevStep}>
-            Back
-          </DuolingoButton>
-        ) : (
-          <div />
-        )}
-
-        {step < 3 ? (
-          <DuolingoButton
-            variant="primary"
-            size="lg"
-            onClick={handleNextStep}
-            className="flex items-center gap-2"
-          >
-            <span>Continue</span>
-            <ArrowRight className="w-4 h-4" />
-          </DuolingoButton>
-        ) : (
-          <DuolingoButton
-            variant="primary"
-            size="lg"
-            disabled={submitting}
-            onClick={handleCheckInSubmit}
-            className="flex items-center gap-2"
-          >
-            <Sparkles className="w-4 h-4" />
-            <span>{submitting ? 'Checking In...' : 'Get Upper Cafe Pass'}</span>
-          </DuolingoButton>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }

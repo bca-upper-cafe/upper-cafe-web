@@ -12,29 +12,15 @@ import {
   checkOutAll,
   fetchStats,
 } from '@/lib/api';
-import { DuolingoButton } from '@/components/DuolingoButton';
-import {
-  Shield,
-  Plus,
-  Trash2,
-  FileSpreadsheet,
-  Users,
-  LogOut,
-  RefreshCw,
-  Search,
-  CheckCircle,
-  AlertCircle,
-  Clock,
-  Sparkles,
-  MapPin,
-} from 'lucide-react';
 import { clsx } from 'clsx';
 
-export default function AdminDashboardPage() {
-  const [activeTab, setActiveTab] = useState<'ROSTER' | 'ABSENCES' | 'IMPORT'>('ROSTER');
+export default function AdminAttendanceDeskPage() {
+  const [filterTab, setFilterTab] = useState<'ALL' | 'ACTIVE' | 'COMPLETED'>('ALL');
+  const [activeSubTab, setActiveSubTab] = useState<'ROSTER' | 'IMPORT' | 'ABSENCES'>('ROSTER');
   const [stats, setStats] = useState<CafeStats | null>(null);
   const [checkins, setCheckins] = useState<CheckInRecord[]>([]);
   const [absences, setAbsences] = useState<TeacherAbsence[]>([]);
+  const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
 
   // Form states for manual absence creation
@@ -44,14 +30,11 @@ export default function AdminDashboardPage() {
   const [newRoom, setNewRoom] = useState('');
   const [newNotes, setNewNotes] = useState('');
 
-  // Google Doc paste state
+  // Google Doc paste state (inspired by One-Click Import in Image 2)
   const [docText, setDocText] = useState(
     `Dr. Robert DeFalco - Physics - Periods 2, 3, 7 - Room 234\nMs. Elena Respass - Mathematics - Periods 4, 5 - Room 118\nMr. David Zhang\tComputer Science\tP1, 8, 9\tUpper Cafe lab\nDr. Janice Kaplan - History - Periods 6, 7 - Room 205`
   );
-  const [importResult, setImportResult] = useState<any>(null);
-
-  // Search filter
-  const [rosterSearch, setRosterSearch] = useState('');
+  const [importNotice, setImportNotice] = useState('');
 
   const loadData = async () => {
     setLoading(true);
@@ -73,6 +56,12 @@ export default function AdminDashboardPage() {
     loadData();
   }, []);
 
+  const handleTogglePeriod = (p: number) => {
+    setNewPeriods((prev) =>
+      prev.includes(p) ? prev.filter((x) => x !== p) : [...prev, p]
+    );
+  };
+
   const handleAddAbsence = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTeacher.trim() || newPeriods.length === 0) return;
@@ -93,7 +82,7 @@ export default function AdminDashboardPage() {
   };
 
   const handleDeleteAbsence = async (id: string) => {
-    if (!confirm('Are you sure you want to remove this absence record?')) return;
+    if (!confirm('Delete this absence record?')) return;
     await deleteAbsence(id);
     loadData();
   };
@@ -101,267 +90,235 @@ export default function AdminDashboardPage() {
   const handleImportDoc = async () => {
     if (!docText.trim()) return;
     const res = await importGoogleDocAbsences(docText, true);
-    setImportResult(res);
+    setImportNotice(`Successfully imported ${res.parsedCount || 0} teachers from Google Doc.`);
     loadData();
   };
 
-  const handleCheckOutStudent = async (id: string) => {
+  const handleCheckOut = async (id: string) => {
     await checkOutStudent(id);
     loadData();
   };
 
   const handleCheckOutAll = async () => {
-    if (!confirm('Check out all active students currently in Upper Cafe?')) return;
+    if (!confirm('Check out all active students?')) return;
     await checkOutAll();
     loadData();
   };
 
-  const togglePeriod = (p: number) => {
-    setNewPeriods((prev) =>
-      prev.includes(p) ? prev.filter((x) => x !== p) : [...prev, p]
-    );
-  };
-
   const filteredCheckins = checkins.filter((c) => {
-    const q = rosterSearch.toLowerCase();
+    if (filterTab === 'ACTIVE' && c.status !== 'ACTIVE') return false;
+    if (filterTab === 'COMPLETED' && c.status !== 'COMPLETED') return false;
+
+    const q = search.toLowerCase();
     return (
       c.studentName.toLowerCase().includes(q) ||
       c.studentEmail.toLowerCase().includes(q) ||
       c.academy.toLowerCase().includes(q) ||
-      c.period.toString().includes(q)
+      c.studentId.includes(q)
     );
   });
 
+  const activeCount = checkins.filter((c) => c.status === 'ACTIVE').length;
+  const completedCount = checkins.filter((c) => c.status === 'COMPLETED').length;
+
   return (
-    <div className="max-w-6xl mx-auto px-4 py-8 sm:py-10 w-full flex-1">
-      {/* Admin Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+    <div className="max-w-6xl mx-auto px-4 py-8 w-full flex-1">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 pb-4 mb-6">
         <div>
-          <div className="flex items-center gap-2 mb-1">
-            <Shield className="w-4 h-4 text-[#C5B358]" />
-            <span className="text-xs font-black uppercase tracking-wider text-[#C5B358]">
-              Staff & Study Hall Monitor Desk
-            </span>
-          </div>
-          <h1 className="text-2xl sm:text-3xl font-black text-[#F0F6FC] tracking-tight">
-            Upper Cafe Administration
+          <h1 className="text-xl font-bold text-slate-900 tracking-tight">
+            Upper Cafe Attendance Desk
           </h1>
-          <p className="text-sm text-[#8B949E] mt-1">
-            Manage teacher absences, Google Doc imports, and student occupancy in real-time.
+          <p className="text-xs text-slate-500 mt-0.5">
+            Real-time student occupancy roster and teacher absence management.
           </p>
         </div>
 
-        <button
-          onClick={loadData}
-          className="self-start sm:self-auto flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold bg-[#151B23] border border-[#2C3442] text-[#8B949E] hover:text-[#F0F6FC] hover:border-[#C5B358] transition-all"
-        >
-          <RefreshCw className={clsx('w-3.5 h-3.5', loading && 'animate-spin')} />
-          <span>Refresh Data</span>
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={loadData}
+            className="text-xs font-semibold px-3 py-1.5 rounded border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 cursor-pointer"
+          >
+            Refresh
+          </button>
+          <button
+            type="button"
+            onClick={handleCheckOutAll}
+            className="text-xs font-semibold px-3 py-1.5 rounded bg-slate-900 hover:bg-slate-800 text-white cursor-pointer"
+          >
+            Check Out All Active
+          </button>
+        </div>
       </div>
 
-      {/* Realtime Stats Bento */}
+      {/* Stats Summary Bar */}
       {stats && (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-8">
-          <div className="p-4 rounded-2xl bg-[#151B23] border border-[#2C3442] border-b-[4px] border-b-[#1C232E]">
-            <span className="text-[11px] font-black uppercase tracking-wider text-[#8B949E]">
-              Current Occupancy
-            </span>
-            <div className="flex items-baseline gap-2 mt-1">
-              <span className="text-2xl font-black text-[#C5B358]">
-                {stats.activeStudentsCount}
-              </span>
-              <span className="text-xs text-[#8B949E]">/ {stats.maxCapacity} students</span>
-            </div>
-            <div className="w-full bg-[#1F2631] h-1.5 rounded-full overflow-hidden mt-2">
-              <div
-                className="h-full bg-[#C5B358] rounded-full"
-                style={{ width: `${stats.capacityPercentage}%` }}
-              />
-            </div>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+          <div className="bg-white border border-slate-200 rounded-lg p-3">
+            <div className="text-[11px] font-semibold text-slate-500 uppercase">Active Students</div>
+            <div className="text-xl font-bold text-slate-900 mt-1">{stats.activeStudentsCount}</div>
           </div>
-
-          <div className="p-4 rounded-2xl bg-[#151B23] border border-[#2C3442] border-b-[4px] border-b-[#1C232E]">
-            <span className="text-[11px] font-black uppercase tracking-wider text-[#8B949E]">
-              Active Period
-            </span>
-            <div className="flex items-baseline gap-2 mt-1">
-              <span className="text-2xl font-black text-[#F0F6FC]">
-                Period {stats.currentPeriod}
-              </span>
-            </div>
-            <span className="text-[11px] text-[#8B949E] mt-1 block">Upper Cafe open</span>
+          <div className="bg-white border border-slate-200 rounded-lg p-3">
+            <div className="text-[11px] font-semibold text-slate-500 uppercase">Current Period</div>
+            <div className="text-xl font-bold text-slate-900 mt-1">Period {stats.currentPeriod}</div>
           </div>
-
-          <div className="p-4 rounded-2xl bg-[#151B23] border border-[#2C3442] border-b-[4px] border-b-[#1C232E]">
-            <span className="text-[11px] font-black uppercase tracking-wider text-[#8B949E]">
-              Today's Absences
-            </span>
-            <div className="flex items-baseline gap-2 mt-1">
-              <span className="text-2xl font-black text-amber-400">
-                {stats.todayAbsencesCount}
-              </span>
-              <span className="text-xs text-[#8B949E]">teachers</span>
-            </div>
-            <span className="text-[11px] text-[#8B949E] mt-1 block">Scheduled for study hall</span>
+          <div className="bg-white border border-slate-200 rounded-lg p-3">
+            <div className="text-[11px] font-semibold text-slate-500 uppercase">Today's Absences</div>
+            <div className="text-xl font-bold text-slate-900 mt-1">{stats.todayAbsencesCount} Teachers</div>
           </div>
-
-          <div className="p-4 rounded-2xl bg-[#151B23] border border-[#2C3442] border-b-[4px] border-b-[#1C232E]">
-            <span className="text-[11px] font-black uppercase tracking-wider text-[#8B949E]">
-              Absence vs Scheduled
-            </span>
-            <div className="flex items-baseline gap-2 mt-1 text-sm font-black">
-              <span className="text-[#C5B358]">{stats.teacherAbsentCount} Absent</span>
-              <span className="text-[#8B949E]">•</span>
-              <span className="text-emerald-400">{stats.defaultStudyHallCount} Sched</span>
+          <div className="bg-white border border-slate-200 rounded-lg p-3">
+            <div className="text-[11px] font-semibold text-slate-500 uppercase">Absence vs Sched</div>
+            <div className="text-sm font-bold text-slate-800 mt-1.5">
+              {stats.teacherAbsentCount} absent • {stats.defaultStudyHallCount} sched
             </div>
-            <span className="text-[11px] text-[#8B949E] mt-1 block">Dual check-in breakdown</span>
           </div>
         </div>
       )}
 
-      {/* Tabs */}
-      <div className="flex items-center gap-2 border-b border-[#2C3442] pb-3 mb-6">
+      {/* Main Tabs */}
+      <div className="flex items-center gap-1 border-b border-slate-200 mb-6">
         <button
-          onClick={() => setActiveTab('ROSTER')}
+          onClick={() => setActiveSubTab('ROSTER')}
           className={clsx(
-            'flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-extrabold transition-all border',
-            activeTab === 'ROSTER'
-              ? 'bg-[#1F2631] text-[#C5B358] border-[#C5B358]/40 shadow-sm'
-              : 'text-[#8B949E] border-transparent hover:text-[#F0F6FC] hover:bg-[#151B23]'
+            'px-4 py-2 text-xs font-semibold cursor-pointer border-b-2 transition-colors',
+            activeSubTab === 'ROSTER'
+              ? 'border-slate-900 text-slate-900'
+              : 'border-transparent text-slate-500 hover:text-slate-900'
           )}
         >
-          <Users className="w-4 h-4" />
-          <span>Live Cafe Roster ({checkins.filter((c) => c.status === 'ACTIVE').length})</span>
+          Check-In Roster ({checkins.length})
         </button>
-
         <button
-          onClick={() => setActiveTab('ABSENCES')}
+          onClick={() => setActiveSubTab('IMPORT')}
           className={clsx(
-            'flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-extrabold transition-all border',
-            activeTab === 'ABSENCES'
-              ? 'bg-[#1F2631] text-[#C5B358] border-[#C5B358]/40 shadow-sm'
-              : 'text-[#8B949E] border-transparent hover:text-[#F0F6FC] hover:bg-[#151B23]'
+            'px-4 py-2 text-xs font-semibold cursor-pointer border-b-2 transition-colors',
+            activeSubTab === 'IMPORT'
+              ? 'border-slate-900 text-slate-900'
+              : 'border-transparent text-slate-500 hover:text-slate-900'
           )}
         >
-          <Plus className="w-4 h-4" />
-          <span>Manage Absences ({absences.length})</span>
+          One-Click Google Doc Import
         </button>
-
         <button
-          onClick={() => setActiveTab('IMPORT')}
+          onClick={() => setActiveSubTab('ABSENCES')}
           className={clsx(
-            'flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-extrabold transition-all border',
-            activeTab === 'IMPORT'
-              ? 'bg-[#1F2631] text-[#C5B358] border-[#C5B358]/40 shadow-sm'
-              : 'text-[#8B949E] border-transparent hover:text-[#F0F6FC] hover:bg-[#151B23]'
+            'px-4 py-2 text-xs font-semibold cursor-pointer border-b-2 transition-colors',
+            activeSubTab === 'ABSENCES'
+              ? 'border-slate-900 text-slate-900'
+              : 'border-transparent text-slate-500 hover:text-slate-900'
           )}
         >
-          <FileSpreadsheet className="w-4 h-4" />
-          <span>Google Doc Importer</span>
+          Manage Absences ({absences.length})
         </button>
       </div>
 
-      {/* TAB 1: Live Student Check-in Roster */}
-      {activeTab === 'ROSTER' && (
+      {/* TAB 1: Roster View inspired by Image 2 */}
+      {activeSubTab === 'ROSTER' && (
         <div className="space-y-4">
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
-            <div className="relative w-full sm:w-72">
-              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#8B949E]" />
-              <input
-                type="text"
-                value={rosterSearch}
-                onChange={(e) => setRosterSearch(e.target.value)}
-                placeholder="Search checked-in students..."
-                className="w-full bg-[#151B23] border border-[#2C3442] focus:border-[#C5B358] rounded-xl pl-9 pr-4 py-2 text-xs text-[#F0F6FC] outline-none"
-              />
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+            {/* Segmented Filter: All | Checked In | Checked Out */}
+            <div className="inline-flex rounded-lg border border-slate-200 bg-slate-100 p-0.5 text-xs font-semibold">
+              <button
+                type="button"
+                onClick={() => setFilterTab('ALL')}
+                className={clsx(
+                  'px-3 py-1.5 rounded-md cursor-pointer transition-colors',
+                  filterTab === 'ALL'
+                    ? 'bg-white text-slate-900 shadow-sm'
+                    : 'text-slate-600 hover:text-slate-900'
+                )}
+              >
+                All ({checkins.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setFilterTab('ACTIVE')}
+                className={clsx(
+                  'px-3 py-1.5 rounded-md cursor-pointer transition-colors',
+                  filterTab === 'ACTIVE'
+                    ? 'bg-white text-slate-900 shadow-sm'
+                    : 'text-slate-600 hover:text-slate-900'
+                )}
+              >
+                Checked In ({activeCount})
+              </button>
+              <button
+                type="button"
+                onClick={() => setFilterTab('COMPLETED')}
+                className={clsx(
+                  'px-3 py-1.5 rounded-md cursor-pointer transition-colors',
+                  filterTab === 'COMPLETED'
+                    ? 'bg-white text-slate-900 shadow-sm'
+                    : 'text-slate-600 hover:text-slate-900'
+                )}
+              >
+                Checked Out ({completedCount})
+              </button>
             </div>
 
-            <DuolingoButton
-              variant="danger"
-              size="sm"
-              onClick={handleCheckOutAll}
-              className="flex items-center gap-1.5 self-end sm:self-auto"
-            >
-              <LogOut className="w-3.5 h-3.5" />
-              <span>Check Out All Students</span>
-            </DuolingoButton>
+            {/* Search */}
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search by name, email, ID..."
+              className="bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-slate-400 sm:w-64"
+            />
           </div>
 
-          <div className="overflow-x-auto rounded-2xl border border-[#2C3442] bg-[#151B23]">
+          {/* Roster Table */}
+          <div className="bg-white border border-slate-200 rounded-lg overflow-hidden shadow-sm">
             <table className="w-full text-left text-xs">
-              <thead className="bg-[#0B0E14] text-[#8B949E] uppercase font-black tracking-wider border-b border-[#2C3442]">
+              <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold uppercase tracking-wider">
                 <tr>
-                  <th className="py-3 px-4">Student</th>
-                  <th className="py-3 px-4">Academy / Grade</th>
-                  <th className="py-3 px-4">Period</th>
-                  <th className="py-3 px-4">Reason / Teacher</th>
-                  <th className="py-3 px-4">Table</th>
-                  <th className="py-3 px-4">Status / Time</th>
-                  <th className="py-3 px-4 text-right">Actions</th>
+                  <th className="py-2.5 px-4">Student</th>
+                  <th className="py-2.5 px-4">Academy / Grade</th>
+                  <th className="py-2.5 px-4">Period</th>
+                  <th className="py-2.5 px-4">Reason</th>
+                  <th className="py-2.5 px-4">Check-In Time</th>
+                  <th className="py-2.5 px-4 text-right">Action</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[#2C3442]">
+              <tbody className="divide-y divide-slate-100">
                 {filteredCheckins.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="py-12 text-center text-[#8B949E]">
-                      No students currently checked in.
+                    <td colSpan={6} className="py-8 text-center text-slate-400">
+                      No records match the current filter.
                     </td>
                   </tr>
                 ) : (
                   filteredCheckins.map((c) => (
-                    <tr key={c.id} className="hover:bg-[#1A222D] transition-colors">
-                      <td className="py-3.5 px-4 font-bold text-[#F0F6FC]">
-                        <div>{c.studentName}</div>
-                        <div className="text-[10px] text-[#8B949E] font-normal font-mono">
-                          {c.studentEmail}
-                        </div>
+                    <tr key={c.id} className="hover:bg-slate-50">
+                      <td className="py-3 px-4">
+                        <div className="font-semibold text-slate-900">{c.studentName}</div>
+                        <div className="text-[11px] text-slate-400 font-mono">{c.studentEmail} {c.studentId ? `• #${c.studentId}` : ''}</div>
                       </td>
-                      <td className="py-3.5 px-4 font-semibold text-[#8B949E]">
-                        <span className="text-[#C5B358]">{c.academy}</span> • Gr {c.grade}
+                      <td className="py-3 px-4 text-slate-600">
+                        {c.academy} • Gr {c.grade}
                       </td>
-                      <td className="py-3.5 px-4">
-                        <span className="px-2 py-0.5 rounded-full font-black text-[11px] bg-[#1F2631] text-[#E5D68A] border border-[#C5B358]/30">
-                          P{c.period}
-                        </span>
+                      <td className="py-3 px-4 font-bold text-slate-900">
+                        P{c.period}
                       </td>
-                      <td className="py-3.5 px-4 font-medium">
-                        {c.scenario === 'DEFAULT_STUDY_HALL' ? (
-                          <span className="text-emerald-400 font-semibold">Scheduled Study</span>
-                        ) : (
-                          <span className="text-amber-300 font-semibold">
-                            Absence: {c.absentTeacherName || 'Class'}
-                          </span>
-                        )}
+                      <td className="py-3 px-4 text-slate-700">
+                        {c.scenario === 'DEFAULT_STUDY_HALL'
+                          ? 'Scheduled Study Hall'
+                          : `Absence: ${c.absentTeacherName || 'Teacher'}`}
                       </td>
-                      <td className="py-3.5 px-4 font-bold text-[#8B949E]">
-                        {c.tableNumber || 'Cafe'}
+                      <td className="py-3 px-4 text-slate-500">
+                        {new Date(c.checkInTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                       </td>
-                      <td className="py-3.5 px-4">
+                      <td className="py-3 px-4 text-right">
                         {c.status === 'ACTIVE' ? (
-                          <span className="inline-flex items-center gap-1 text-emerald-400 font-bold">
-                            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                            Active (
-                            {new Date(c.checkInTime).toLocaleTimeString([], {
-                              hour: '2-digit',
-                              minute: '2-digit',
-                            })}
-                            )
-                          </span>
-                        ) : (
-                          <span className="text-[#8B949E]">
-                            Checked out ({new Date(c.checkOutTime || '').toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })})
-                          </span>
-                        )}
-                      </td>
-                      <td className="py-3.5 px-4 text-right">
-                        {c.status === 'ACTIVE' && (
                           <button
-                            onClick={() => handleCheckOutStudent(c.id)}
-                            className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-red-950/60 border border-red-800 text-red-300 hover:bg-red-900 transition-colors"
+                            type="button"
+                            onClick={() => handleCheckOut(c.id)}
+                            className="bg-slate-800 hover:bg-slate-900 text-white font-semibold text-[11px] px-3 py-1 rounded cursor-pointer transition-colors"
                           >
                             Check Out
                           </button>
+                        ) : (
+                          <span className="text-[11px] text-slate-400 font-medium">Completed</span>
                         )}
                       </td>
                     </tr>
@@ -373,39 +330,71 @@ export default function AdminDashboardPage() {
         </div>
       )}
 
-      {/* TAB 2: Manual Absence Management */}
-      {activeTab === 'ABSENCES' && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Form */}
-          <div className="lg:col-span-1 p-5 rounded-2xl bg-[#151B23] border border-[#2C3442] border-b-[4px] border-b-[#1C232E]">
-            <h2 className="text-base font-black text-[#F0F6FC] mb-4 flex items-center gap-2">
-              <Plus className="w-4 h-4 text-[#C5B358]" />
-              <span>Add Absent Teacher</span>
-            </h2>
+      {/* TAB 2: One-Click Google Doc Import inspired by Image 2 */}
+      {activeSubTab === 'IMPORT' && (
+        <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm space-y-4">
+          <div>
+            <h2 className="text-base font-bold text-slate-900">One-Click Google Doc Import</h2>
+            <p className="text-xs text-slate-500 mt-1">
+              Copy and paste rows from the BCA daily absence Google Doc or spreadsheet. The parser will extract teacher names, periods, rooms, and notes.
+            </p>
+          </div>
 
-            <form onSubmit={handleAddAbsence} className="space-y-4 text-xs">
+          <textarea
+            rows={8}
+            value={docText}
+            onChange={(e) => setDocText(e.target.value)}
+            placeholder="Paste Google Doc absence lines here..."
+            className="w-full bg-slate-50 border border-slate-200 rounded-lg p-3 text-xs font-mono text-slate-900 focus:outline-none focus:border-slate-400"
+          />
+
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-slate-400">
+              Parses dashes, tabs, period ranges (e.g. Periods 2-4), and rooms.
+            </span>
+            <button
+              type="button"
+              onClick={handleImportDoc}
+              className="bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs py-2 px-4 rounded-lg cursor-pointer transition-colors"
+            >
+              Parse & Import Absences
+            </button>
+          </div>
+
+          {importNotice && (
+            <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-lg text-emerald-800 text-xs font-medium">
+              {importNotice}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* TAB 3: Absence CRUD */}
+      {activeSubTab === 'ABSENCES' && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {/* Manual Add Form */}
+          <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm space-y-3">
+            <h2 className="text-sm font-bold text-slate-900">Add Teacher Absence</h2>
+
+            <form onSubmit={handleAddAbsence} className="space-y-3 text-xs">
               <div>
-                <label className="block font-black uppercase text-[#8B949E] mb-1">
-                  Teacher Name <span className="text-red-400">*</span>
-                </label>
+                <label className="block text-slate-600 font-medium mb-1">Teacher Name *</label>
                 <input
                   type="text"
                   required
                   value={newTeacher}
                   onChange={(e) => setNewTeacher(e.target.value)}
                   placeholder="e.g. Dr. Robert DeFalco"
-                  className="w-full bg-[#0B0E14] border border-[#2C3442] rounded-xl px-3 py-2 text-xs text-[#F0F6FC] outline-none focus:border-[#C5B358]"
+                  className="w-full border border-slate-200 rounded px-2.5 py-1.5 text-xs text-slate-900 focus:outline-none focus:border-slate-400"
                 />
               </div>
 
               <div>
-                <label className="block font-black uppercase text-[#8B949E] mb-1">
-                  Department
-                </label>
+                <label className="block text-slate-600 font-medium mb-1">Department</label>
                 <select
                   value={newDept}
                   onChange={(e) => setNewDept(e.target.value)}
-                  className="w-full bg-[#0B0E14] border border-[#2C3442] rounded-xl px-3 py-2 text-xs text-[#F0F6FC] outline-none focus:border-[#C5B358]"
+                  className="w-full border border-slate-200 rounded px-2.5 py-1.5 text-xs text-slate-900 focus:outline-none focus:border-slate-400"
                 >
                   <option value="Mathematics">Mathematics</option>
                   <option value="Science & Physics">Science & Physics</option>
@@ -413,27 +402,24 @@ export default function AdminDashboardPage() {
                   <option value="Computer Science & ATCS">Computer Science & ATCS</option>
                   <option value="Engineering & Technology">Engineering & Technology</option>
                   <option value="World Languages">World Languages</option>
-                  <option value="Visual & Performing Arts">Visual & Performing Arts</option>
                 </select>
               </div>
 
               <div>
-                <label className="block font-black uppercase text-[#8B949E] mb-1">
-                  Periods Absent (Select all that apply)
-                </label>
-                <div className="grid grid-cols-5 gap-1.5 pt-1">
+                <label className="block text-slate-600 font-medium mb-1">Periods Absent</label>
+                <div className="grid grid-cols-5 gap-1">
                   {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((p) => {
                     const sel = newPeriods.includes(p);
                     return (
                       <button
                         key={p}
                         type="button"
-                        onClick={() => togglePeriod(p)}
+                        onClick={() => handleTogglePeriod(p)}
                         className={clsx(
-                          'py-1.5 rounded-lg font-black text-xs border transition-all',
+                          'py-1 rounded text-xs font-semibold border cursor-pointer',
                           sel
-                            ? 'bg-[#C5B358] text-[#0B0E14] border-[#7A6B25]'
-                            : 'bg-[#0B0E14] text-[#8B949E] border-[#2C3442]'
+                            ? 'bg-slate-900 text-white border-slate-900'
+                            : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
                         )}
                       >
                         P{p}
@@ -444,142 +430,64 @@ export default function AdminDashboardPage() {
               </div>
 
               <div>
-                <label className="block font-black uppercase text-[#8B949E] mb-1">
-                  Room
-                </label>
+                <label className="block text-slate-600 font-medium mb-1">Room</label>
                 <input
                   type="text"
                   value={newRoom}
                   onChange={(e) => setNewRoom(e.target.value)}
                   placeholder="e.g. Room 234"
-                  className="w-full bg-[#0B0E14] border border-[#2C3442] rounded-xl px-3 py-2 text-xs text-[#F0F6FC] outline-none focus:border-[#C5B358]"
+                  className="w-full border border-slate-200 rounded px-2.5 py-1.5 text-xs text-slate-900 focus:outline-none focus:border-slate-400"
                 />
               </div>
 
               <div>
-                <label className="block font-black uppercase text-[#8B949E] mb-1">
-                  Instructions / Notes
-                </label>
+                <label className="block text-slate-600 font-medium mb-1">Coverage Notes</label>
                 <textarea
                   rows={2}
                   value={newNotes}
                   onChange={(e) => setNewNotes(e.target.value)}
                   placeholder="e.g. Report to Upper Cafe. Schoology assignment posted."
-                  className="w-full bg-[#0B0E14] border border-[#2C3442] rounded-xl px-3 py-2 text-xs text-[#F0F6FC] outline-none focus:border-[#C5B358]"
+                  className="w-full border border-slate-200 rounded px-2.5 py-1.5 text-xs text-slate-900 focus:outline-none focus:border-slate-400"
                 />
               </div>
 
-              <DuolingoButton variant="primary" size="md" fullWidth type="submit">
-                Add To Absence Board
-              </DuolingoButton>
+              <button
+                type="submit"
+                className="w-full bg-slate-900 hover:bg-slate-800 text-white font-semibold py-2 rounded text-xs cursor-pointer transition-colors"
+              >
+                Add Absence
+              </button>
             </form>
           </div>
 
-          {/* List */}
-          <div className="lg:col-span-2 space-y-3">
-            <h2 className="text-base font-black text-[#F0F6FC] flex items-center justify-between">
-              <span>Active Teacher Absences Today</span>
-              <span className="text-xs font-normal text-[#8B949E]">{absences.length} listed</span>
-            </h2>
+          {/* List of absences */}
+          <div className="md:col-span-2 space-y-2">
+            <h2 className="text-sm font-bold text-slate-900">Current Absences ({absences.length})</h2>
 
-            <div className="space-y-2.5">
+            <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm divide-y divide-slate-100">
               {absences.map((a) => (
-                <div
-                  key={a.id}
-                  className="p-4 rounded-xl bg-[#151B23] border border-[#2C3442] flex items-start justify-between gap-3"
-                >
+                <div key={a.id} className="p-3.5 flex items-center justify-between text-xs">
                   <div>
-                    <div className="flex items-center gap-2">
-                      <h3 className="font-extrabold text-sm text-[#F0F6FC]">{a.teacherName}</h3>
-                      <span className="text-xs text-[#C5B358]">({a.department})</span>
+                    <div className="font-semibold text-slate-900">
+                      {a.teacherName} <span className="font-normal text-slate-500">({a.department})</span>
                     </div>
-                    <div className="flex items-center gap-2 mt-1">
-                      <span className="text-[11px] font-bold text-[#E5D68A]">
-                        Periods: {a.periods.map((p) => `P${p}`).join(', ')}
-                      </span>
-                      {a.room && (
-                        <span className="text-[11px] text-[#8B949E]">• {a.room}</span>
-                      )}
+                    <div className="text-slate-500 mt-0.5">
+                      Periods: <span className="font-mono font-medium text-slate-800">{a.periods.map((p) => `P${p}`).join(', ')}</span> {a.room ? `• ${a.room}` : ''}
                     </div>
-                    {a.notes && (
-                      <p className="text-xs text-[#8B949E] mt-1.5">{a.notes}</p>
-                    )}
+                    {a.notes && <div className="text-slate-600 mt-1">{a.notes}</div>}
                   </div>
 
                   <button
+                    type="button"
                     onClick={() => handleDeleteAbsence(a.id)}
-                    className="p-2 text-[#8B949E] hover:text-red-400 transition-colors"
+                    className="text-xs text-red-600 hover:text-red-800 font-semibold px-2 py-1 rounded cursor-pointer"
                   >
-                    <Trash2 className="w-4 h-4" />
+                    Delete
                   </button>
                 </div>
               ))}
             </div>
           </div>
-        </div>
-      )}
-
-      {/* TAB 3: Google Doc Bulk Importer */}
-      {activeTab === 'IMPORT' && (
-        <div className="p-6 rounded-2xl bg-[#151B23] border border-[#2C3442] border-b-[4px] border-b-[#1C232E] space-y-5">
-          <div>
-            <h2 className="text-lg font-black text-[#F0F6FC] flex items-center gap-2">
-              <FileSpreadsheet className="w-5 h-5 text-[#C5B358]" />
-              <span>Google Doc Quick Importer</span>
-            </h2>
-            <p className="text-xs text-[#8B949E] mt-1 leading-relaxed">
-              Eliminate manual data entry! Copy the daily absences straight from the BCA Google Doc
-              or Google Sheets table and paste it below. The system will automatically detect teacher names,
-              periods (e.g. "P2, P4", "Periods 3-5"), rooms, and notes.
-            </p>
-          </div>
-
-          <div>
-            <label className="block text-xs font-black uppercase text-[#8B949E] mb-2">
-              Paste Raw Text from Google Doc / Email:
-            </label>
-            <textarea
-              rows={8}
-              value={docText}
-              onChange={(e) => setDocText(e.target.value)}
-              placeholder="Paste rows here..."
-              className="w-full bg-[#0B0E14] border-2 border-[#2C3442] rounded-xl p-3 text-xs text-[#F0F6FC] font-mono outline-none focus:border-[#C5B358]"
-            />
-          </div>
-
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-[#8B949E]">
-              Supports dashes, colons, tabs, period ranges, and room numbers.
-            </span>
-            <DuolingoButton
-              variant="primary"
-              size="md"
-              onClick={handleImportDoc}
-              className="flex items-center gap-2"
-            >
-              <Sparkles className="w-4 h-4" />
-              <span>Parse & Import to Upper Cafe</span>
-            </DuolingoButton>
-          </div>
-
-          {importResult && (
-            <div className="mt-4 p-4 rounded-xl bg-[#0B0E14] border border-[#C5B358]/40 space-y-3">
-              <div className="flex items-center gap-2 text-xs font-bold text-emerald-400">
-                <CheckCircle className="w-4 h-4" />
-                <span>
-                  Successfully parsed & imported {importResult.parsedCount} absent teachers!
-                </span>
-              </div>
-              <div className="text-xs space-y-1 font-mono text-[#8B949E]">
-                {importResult.entries?.map((e: any, idx: number) => (
-                  <div key={idx}>
-                    ✓ <strong className="text-[#F0F6FC]">{e.teacherName}</strong> — Periods:{' '}
-                    <span className="text-[#C5B358]">{e.periods?.join(', ')}</span> ({e.department})
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
         </div>
       )}
     </div>
