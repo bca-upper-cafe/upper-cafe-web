@@ -8,94 +8,88 @@
   --text: #111111;
   --muted: #666666;
   --border: #eaeaea;
-  --purple-main: #6355D8;
-  --purple-dark: #4A36B8;
-  --purple-soft: #F5F3FF;
+}
+
+* {
+  box-sizing: border-box;
 }
 
 body {
-  background-color: #ffffff;
-  color: #111111;
+  background-color: var(--bg);
+  color: var(--text);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   margin: 0;
   padding: 0;
   -webkit-font-smoothing: antialiased;
 }
 
-/* Duolingo-style 3D Button Utility Classes */
-.btn-duo-purple {
-  background-color: #6355D8;
+/* Minimalist Button Utilities */
+.btn-minimal-primary {
+  background-color: #111111;
   color: #ffffff;
-  border-bottom: 4px solid #4A36B8;
-  border-radius: 1rem;
-  font-weight: 700;
-  transition: all 0.08s ease-in-out;
-  cursor: pointer;
-  user-select: none;
+  border-radius: 8px;
+  font-weight: 500;
+  font-size: 0.875rem;
+  transition: opacity 0.15s ease, background-color 0.15s ease;
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  cursor: pointer;
+  user-select: none;
 }
-.btn-duo-purple:hover:not(:disabled) {
-  background-color: #5748ce;
+.btn-minimal-primary:hover:not(:disabled) {
+  background-color: #262626;
 }
-.btn-duo-purple:active:not(:disabled) {
-  transform: translateY(2px);
-  border-bottom-width: 2px;
+.btn-minimal-primary:active:not(:disabled) {
+  opacity: 0.85;
 }
 
-.btn-duo-secondary {
+.btn-minimal-secondary {
   background-color: #ffffff;
   color: #111111;
-  border: 2px solid #E5E7EB;
-  border-bottom: 4px solid #D1D5DB;
-  border-radius: 1rem;
-  font-weight: 700;
-  transition: all 0.08s ease-in-out;
-  cursor: pointer;
-  user-select: none;
+  border: 1px solid #eaeaea;
+  border-radius: 8px;
+  font-weight: 500;
+  font-size: 0.875rem;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  cursor: pointer;
+  user-select: none;
 }
-.btn-duo-secondary:hover:not(:disabled) {
-  background-color: #FAFAFA;
-  border-color: #D1D5DB;
-  border-bottom-color: #9CA3AF;
+.btn-minimal-secondary:hover:not(:disabled) {
+  background-color: #fafafa;
+  border-color: #d1d1d1;
 }
-.btn-duo-secondary:active:not(:disabled) {
-  transform: translateY(2px);
-  border-bottom-width: 2px;
+.btn-minimal-secondary:active:not(:disabled) {
+  background-color: #f0f0f0;
 }
 
-.btn-duo-danger {
-  background-color: #EF4444;
+.btn-minimal-danger {
+  background-color: #111111;
   color: #ffffff;
-  border-bottom: 4px solid #B91C1C;
-  border-radius: 1rem;
-  font-weight: 700;
-  transition: all 0.08s ease-in-out;
-  cursor: pointer;
-  user-select: none;
+  border-radius: 8px;
+  font-weight: 500;
+  font-size: 0.875rem;
+  transition: opacity 0.15s ease;
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  cursor: pointer;
+  user-select: none;
 }
-.btn-duo-danger:hover:not(:disabled) {
-  background-color: #DC2626;
-}
-.btn-duo-danger:active:not(:disabled) {
-  transform: translateY(2px);
-  border-bottom-width: 2px;
+.btn-minimal-danger:hover:not(:disabled) {
+  background-color: #b91c1c;
 }
 
-.btn-duo-disabled {
-  background-color: #E5E7EB;
-  color: #9CA3AF;
-  border: 2px solid #E5E7EB;
-  border-bottom: 4px solid #D1D5DB;
-  border-radius: 1rem;
-  font-weight: 700;
+.btn-minimal-disabled {
+  background-color: #f5f5f5;
+  color: #999999;
+  border: 1px solid #eaeaea;
+  border-radius: 8px;
+  font-weight: 500;
+  font-size: 0.875rem;
   cursor: not-allowed;
   user-select: none;
   display: inline-flex;
@@ -103,43 +97,35 @@ body {
   justify-content: center;
 }
 
-/* Duolingo-style Card Selection Tiles */
-.card-duo-tile {
-  border: 2px solid #E5E7EB;
-  border-bottom: 4px solid #D1D5DB;
-  border-radius: 1rem;
+/* Minimalist Card Option */
+.card-minimal-option {
+  border: 1px solid #eaeaea;
+  border-radius: 10px;
   background-color: #ffffff;
-  transition: all 0.1s ease-in-out;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
   cursor: pointer;
   user-select: none;
 }
-.card-duo-tile:hover {
-  border-color: #C4B5FD;
-  background-color: #FAF9FF;
+.card-minimal-option:hover {
+  border-color: #111111;
 }
-.card-duo-tile:active {
-  transform: translateY(2px);
-  border-bottom-width: 2px;
-}
-.card-duo-tile.is-selected {
-  border-color: #6355D8;
-  border-bottom-color: #4A36B8;
-  background-color: #F5F3FF;
-  color: #2E1065;
+.card-minimal-option.is-selected {
+  border-color: #111111;
+  background-color: #fafafa;
 }
 
-/* Custom subtle scrollbar */
+/* Subtle scrollbar */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
 }
 ::-webkit-scrollbar-track {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: #E5E7EB;
-  border-radius: 3px;
+  background: #eaeaea;
+  border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #D1D5DB;
+  background: #cccccc;
 }

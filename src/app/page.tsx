@@ -1,46 +1,35 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth';
 import { ScheduleStatus } from '@/types';
-import { fetchScheduleStatus, calculateLocalScheduleStatus } from '@/lib/schedule';
-import { Calendar, Clock, ArrowRight, BookOpen, CheckCircle, Sliders } from 'lucide-react';
+import { fetchScheduleStatus } from '@/lib/schedule';
 
 export default function HomePage() {
   const { user, activeCheckIn, isLoading: authLoading } = useAuth();
-  const router = useRouter();
-
   const [schedule, setSchedule] = useState<ScheduleStatus | null>(null);
   const [loadingSchedule, setLoadingSchedule] = useState(true);
   const [greeting, setGreeting] = useState<'Good morning' | 'Good afternoon'>('Good morning');
-
-  // Simulation state for testing states
-  const [simulatedState, setSimulatedState] = useState<string>('auto');
+  const [simState, setSimState] = useState<string>('auto');
 
   useEffect(() => {
     const hour = new Date().getHours();
     setGreeting(hour < 12 ? 'Good morning' : 'Good afternoon');
 
-    async function loadSchedule() {
+    async function load() {
       setLoadingSchedule(true);
-      const status = await fetchScheduleStatus();
-      setSchedule(status);
+      const res = await fetchScheduleStatus();
+      setSchedule(res);
       setLoadingSchedule(false);
     }
-    loadSchedule();
-
-    const interval = setInterval(loadSchedule, 60000);
-    return () => clearInterval(interval);
+    load();
   }, []);
 
-  // Compute effective schedule based on simulatedState or real status
-  const effectiveStatus = React.useMemo(() => {
+  const effective = useMemo(() => {
     if (!schedule) return null;
-    if (simulatedState === 'auto') return schedule;
-
-    if (simulatedState === 'in_session') {
+    if (simState === 'auto') return schedule;
+    if (simState === 'in_session') {
       return {
         ...schedule,
         hasSchool: true,
@@ -51,202 +40,141 @@ export default function HomePage() {
         message: 'Current: Period 4'
       };
     }
-    if (simulatedState === 'not_started') {
-      return {
-        ...schedule,
-        hasSchool: true,
-        status: 'not_started' as const,
-        period: null,
-        message: "School hasn't started yet!"
-      };
+    if (simState === 'not_started') {
+      return { ...schedule, hasSchool: true, status: 'not_started' as const, period: null, message: "School hasn't started yet!" };
     }
-    if (simulatedState === 'ended') {
-      return {
-        ...schedule,
-        hasSchool: true,
-        status: 'ended' as const,
-        period: null,
-        message: 'No school for the rest of the day!'
-      };
+    if (simState === 'ended') {
+      return { ...schedule, hasSchool: true, status: 'ended' as const, period: null, message: 'No school for the rest of the day!' };
     }
-    if (simulatedState === 'no_school') {
-      return {
-        ...schedule,
-        hasSchool: false,
-        status: 'no_school' as const,
-        period: null,
-        message: 'No school today!'
-      };
+    if (simState === 'no_school') {
+      return { ...schedule, hasSchool: false, status: 'no_school' as const, period: null, message: 'No school today!' };
     }
     return schedule;
-  }, [schedule, simulatedState]);
+  }, [schedule, simState]);
 
-  if (authLoading || loadingSchedule || !effectiveStatus) {
+  if (authLoading || loadingSchedule || !effective) {
     return (
-      <div className="min-h-[60vh] flex items-center justify-center">
-        <div className="animate-spin w-8 h-8 rounded-full border-2 border-[#6355D8] border-t-transparent" />
-      </div>
+      <main className="max-w-[580px] mx-auto px-6 py-20">
+        <p className="text-sm text-[#666666]">Loading schedule...</p>
+      </main>
     );
   }
 
-  // Determine button availability per user specifications
-  // In session: both enabled
-  // No school today: both disabled ("No school today!")
-  // Before school: check-in disabled ("School hasn't started yet!"), teacher attendance enabled
-  // After school: both disabled ("No school for the rest of the day!")
-  const canCheckIn = effectiveStatus.status === 'in_session';
-  const canViewAttendance = effectiveStatus.status !== 'no_school' && effectiveStatus.status !== 'ended';
+  const canCheckIn = effective.status === 'in_session';
+  const canViewAttendance = effective.status !== 'no_school' && effective.status !== 'ended';
 
   return (
-    <main className="max-w-[680px] mx-auto px-6 py-12 space-y-10">
-      {/* Header Greeting */}
-      <header className="space-y-2">
-        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#111111]">
+    <main className="max-w-5xl mx-auto px-6 sm:px-8 py-12 space-y-6">
+      <header className="space-y-1">
+        <h1 className="text-xl font-semibold tracking-tight text-[#111111]">
           {greeting} 👋 {user?.name || 'Student'}
         </h1>
-        <p className="text-[#666666] text-sm">
-          Welcome to BCA Upper Cafe attendance tracking and teacher absence directory.
+        <p className="text-sm text-[#666666]">
+          {effective.status === 'in_session' && effective.period && (
+            <span>School is in session &middot; Period {effective.period}</span>
+          )}
+          {effective.status !== 'in_session' && (
+            <span>{effective.message}</span>
+          )}
         </p>
       </header>
 
-      {/* Period / School Status Display */}
-      <section className="p-6 rounded-2xl border border-[#eaeaea] bg-white space-y-4">
-        <div className="flex items-center justify-between text-xs text-[#666666]">
-          <span className="uppercase tracking-wider font-semibold">Today&apos;s Schedule</span>
-          <span className="flex items-center gap-1">
-            <Calendar className="w-3.5 h-3.5" />
-            {effectiveStatus.date}
-          </span>
+      <hr className="border-none border-t border-[#eaeaea]" />
+
+      {/* Active Check-In Banner */}
+      {activeCheckIn && (
+        <div className="p-4 rounded-lg border border-[#111111] bg-[#fafafa] space-y-2">
+          <div className="text-xs uppercase tracking-wider font-semibold text-[#111111]">
+            Active Sign-In
+          </div>
+          <p className="text-sm text-[#111111]">
+            You are signed into Upper Cafe for <strong>Period {activeCheckIn.period}</strong> ({activeCheckIn.reason === 'TEACHER_ABSENT' ? `Absent Teacher: ${activeCheckIn.teacherName}` : 'Study Hall'}).
+          </p>
+          <div>
+            <Link
+              href="/check-out"
+              className="text-xs font-semibold text-[#111111] underline underline-offset-3"
+            >
+              Go to Check Out &rarr;
+            </Link>
+          </div>
+        </div>
+      )}
+
+      {/* Action Buttons */}
+      <section className="space-y-3">
+        <div className="text-xs uppercase tracking-wider text-[#666666] font-semibold">
+          Actions
         </div>
 
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-1">
-          <div>
-            {effectiveStatus.status === 'in_session' && effectiveStatus.period && (
-              <div className="space-y-1">
-                <div className="text-xl font-bold text-[#111111] flex items-center gap-2">
-                  <span>Period {effectiveStatus.period}</span>
-                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-[#ECFDF5] text-[#059669] border border-[#A7F3D0]">
-                    In Session
-                  </span>
-                </div>
-                {effectiveStatus.periodStart && effectiveStatus.periodEnd && (
-                  <p className="text-xs text-[#666666] flex items-center gap-1">
-                    <Clock className="w-3 h-3" />
-                    {effectiveStatus.periodStart.slice(0, 5)} &ndash; {effectiveStatus.periodEnd.slice(0, 5)}
-                  </p>
-                )}
-              </div>
-            )}
+        <div className="flex flex-col sm:flex-row gap-2.5">
+          {canCheckIn ? (
+            <Link
+              href="/check-in/code"
+              className="btn-minimal-primary py-2.5 px-5 text-sm flex-1 text-center"
+            >
+              Sign-In to Upper Cafe &rarr;
+            </Link>
+          ) : (
+            <button
+              disabled
+              className="btn-minimal-disabled py-2.5 px-5 text-sm flex-1"
+            >
+              Sign-In to Upper Cafe
+            </button>
+          )}
 
-            {effectiveStatus.status !== 'in_session' && (
-              <div className="space-y-1">
-                <div className="text-lg font-bold text-[#111111]">
-                  {effectiveStatus.message}
-                </div>
-                <p className="text-xs text-[#666666]">
-                  {effectiveStatus.status === 'no_school' && 'Enjoy your day off! Upper Cafe check-in is closed.'}
-                  {effectiveStatus.status === 'not_started' && 'Check-in opens when Period 1 begins at 08:00 AM.'}
-                  {effectiveStatus.status === 'ended' && 'All periods have completed for today.'}
-                </p>
-              </div>
-            )}
-          </div>
-
-          {effectiveStatus.scheduleType && (
-            <div className="text-xs px-3 py-1.5 rounded-xl bg-[#F9FAFB] border border-[#E5E7EB] text-[#4B5563] self-start sm:self-auto">
-              Schedule: <span className="font-semibold">{effectiveStatus.scheduleType}</span>
-            </div>
+          {canViewAttendance ? (
+            <Link
+              href="/absences"
+              className="btn-minimal-secondary py-2.5 px-5 text-sm flex-1 text-center"
+            >
+              Teacher Attendance &rarr;
+            </Link>
+          ) : (
+            <button
+              disabled
+              className="btn-minimal-disabled py-2.5 px-5 text-sm flex-1"
+            >
+              Teacher Attendance
+            </button>
           )}
         </div>
       </section>
 
-      {/* Main Action Buttons (Duolingo 3D Button Style) */}
-      <section className="space-y-4">
-        {/* Check-In Button */}
-        {canCheckIn ? (
-          <Link
-            href="/check-in/code"
-            className="w-full btn-duo-purple py-4 px-6 text-base shadow-sm"
-          >
-            <span>Check-In to Upper Cafe</span>
-            <ArrowRight className="w-5 h-5 ml-2" />
-          </Link>
-        ) : (
-          <button
-            disabled
-            className="w-full btn-duo-disabled py-4 px-6 text-base"
-          >
-            <span>Check-In to Upper Cafe</span>
-          </button>
-        )}
+      <hr className="border-none border-t border-[#eaeaea]" />
 
-        {/* Teacher Attendance Button */}
-        {canViewAttendance ? (
-          <Link
-            href="/absences"
-            className="w-full btn-duo-secondary py-4 px-6 text-base"
-          >
-            <BookOpen className="w-5 h-5 mr-2 text-[#6355D8]" />
-            <span>Teacher Attendance</span>
-          </Link>
-        ) : (
-          <button
-            disabled
-            className="w-full btn-duo-disabled py-4 px-6 text-base"
-          >
-            <BookOpen className="w-5 h-5 mr-2 text-[#9CA3AF]" />
-            <span>Teacher Attendance</span>
-          </button>
-        )}
+      {/* About & Instructions */}
+      <section className="space-y-2 text-sm text-[#666666] leading-relaxed">
+        <div className="text-xs uppercase tracking-wider text-[#666666] font-semibold">
+          About
+        </div>
+        <p>
+          Students assigned to Upper Cafe for study hall or due to teacher absences must sign in using the 6-character Cafe Code displayed in the room.
+        </p>
       </section>
 
-      {/* Active Check-In Banner if student is already checked in */}
-      {activeCheckIn && (
-        <section className="p-5 rounded-2xl border-2 border-[#6355D8] bg-[#F5F3FF] flex items-center justify-between gap-4">
-          <div className="space-y-1">
-            <div className="flex items-center gap-2">
-              <CheckCircle className="w-4 h-4 text-[#6355D8]" />
-              <span className="font-bold text-sm text-[#2E1065]">
-                You are currently checked in for Period {activeCheckIn.period}
-              </span>
-            </div>
-            <p className="text-xs text-[#5B21B6]">
-              {activeCheckIn.reason === 'TEACHER_ABSENT'
-                ? `Teacher Absent: ${activeCheckIn.teacherName || 'Assigned Proctor'}`
-                : 'Study Hall'}
-            </p>
-          </div>
-          <Link
-            href="/check-out"
-            className="btn-duo-purple py-2 px-4 text-xs shrink-0"
-          >
-            Check Out &rarr;
-          </Link>
-        </section>
-      )}
-
-      {/* Quick Schedule Simulation Switcher (for demonstration/testing) */}
-      <section className="pt-6 border-t border-[#eaeaea]">
-        <details className="text-xs text-[#666666]">
-          <summary className="cursor-pointer font-medium hover:text-[#111111] flex items-center gap-1.5 select-none">
-            <Sliders className="w-3.5 h-3.5" />
-            <span>Schedule Tester & Controls (Toggle School States)</span>
+      {/* Minimal simulation controls */}
+      <div className="pt-4 border-t border-[#eaeaea]">
+        <details className="text-xs text-[#888888]">
+          <summary className="cursor-pointer hover:text-[#111111]">
+            Schedule Tester Controls
           </summary>
-          <div className="pt-3 pb-1 flex flex-wrap items-center gap-2">
+          <div className="pt-2 flex flex-wrap gap-2">
             {[
-              { id: 'auto', label: 'Live Auto Schedule' },
-              { id: 'in_session', label: 'Simulate In Session (Period 4)' },
-              { id: 'not_started', label: 'Simulate Before School' },
-              { id: 'ended', label: 'Simulate After School' },
-              { id: 'no_school', label: 'Simulate No School Today' },
+              { id: 'auto', label: 'Auto' },
+              { id: 'in_session', label: 'In Session' },
+              { id: 'not_started', label: 'Before School' },
+              { id: 'ended', label: 'After School' },
+              { id: 'no_school', label: 'No School' },
             ].map(({ id, label }) => (
               <button
                 key={id}
-                onClick={() => setSimulatedState(id)}
-                className={`px-3 py-1 rounded-lg font-medium border text-xs transition-all ${
-                  simulatedState === id
-                    ? 'bg-[#6355D8] text-white border-[#4A36B8]'
-                    : 'bg-white text-[#4B5563] border-[#E5E7EB] hover:border-[#6355D8]'
+                onClick={() => setSimState(id)}
+                className={`px-2 py-1 text-xs rounded border ${
+                  simState === id
+                    ? 'bg-[#111111] text-white border-[#111111]'
+                    : 'bg-white text-[#666666] border-[#eaeaea] hover:text-[#111111]'
                 }`}
               >
                 {label}
@@ -254,7 +182,7 @@ export default function HomePage() {
             ))}
           </div>
         </details>
-      </section>
+      </div>
     </main>
   );
 }
