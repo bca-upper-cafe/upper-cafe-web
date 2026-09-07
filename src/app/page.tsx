@@ -1,396 +1,260 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { CheckInRecord, CheckInScenario, TeacherAbsence, Academy } from '@/types';
-import {
-  fetchAbsences,
-  createCheckIn,
-  checkOutStudent,
-  fetchCheckins,
-} from '@/lib/api';
-import { clsx } from 'clsx';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { useAuth } from '@/lib/auth';
+import { ScheduleStatus } from '@/types';
+import { fetchScheduleStatus, calculateLocalScheduleStatus } from '@/lib/schedule';
+import { Calendar, Clock, ArrowRight, BookOpen, CheckCircle, Sliders } from 'lucide-react';
 
-const ACADEMIES: Academy[] = [
-  'AAST',
-  'AEDT',
-  'AMST',
-  'ABF',
-  'ATCS',
-  'ACAHA',
-  'AVPA-M',
-  'AVPA-T',
-  'AVPA-V',
-];
+export default function HomePage() {
+  const { user, activeCheckIn, isLoading: authLoading } = useAuth();
+  const router = useRouter();
 
-export default function StudentCheckInPage() {
-  const [scenario, setScenario] = useState<CheckInScenario>('DEFAULT_STUDY_HALL');
-  const [selectedPeriod, setSelectedPeriod] = useState<number>(4);
-  const [absentTeachers, setAbsentTeachers] = useState<TeacherAbsence[]>([]);
-  const [selectedTeacherId, setSelectedTeacherId] = useState<string>('');
-  const [teacherSearch, setTeacherSearch] = useState('');
+  const [schedule, setSchedule] = useState<ScheduleStatus | null>(null);
+  const [loadingSchedule, setLoadingSchedule] = useState(true);
+  const [greeting, setGreeting] = useState<'Good morning' | 'Good afternoon'>('Good morning');
 
-  // Form info
-  const [studentName, setStudentName] = useState('');
-  const [studentEmail, setStudentEmail] = useState('');
-  const [studentId, setStudentId] = useState('');
-  const [academy, setAcademy] = useState<Academy>('ATCS');
-  const [grade, setGrade] = useState<'9' | '10' | '11' | '12'>('11');
+  // Simulation state for testing states
+  const [simulatedState, setSimulatedState] = useState<string>('auto');
 
-  // Active pass state
-  const [activePass, setActivePass] = useState<CheckInRecord | null>(null);
-  const [submitting, setSubmitting] = useState(false);
-  const [errorMsg, setErrorMsg] = useState('');
-  const [elapsedMinutes, setElapsedMinutes] = useState(0);
-
-  // Load active pass from localStorage if exists
   useEffect(() => {
-    const savedPassId = localStorage.getItem('bca_upper_cafe_active_pass_id');
-    if (savedPassId) {
-      fetchCheckins('ACTIVE').then((activeList) => {
-        const found = activeList.find((p) => p.id === savedPassId);
-        if (found) {
-          setActivePass(found);
-        } else {
-          localStorage.removeItem('bca_upper_cafe_active_pass_id');
-        }
-      });
+    const hour = new Date().getHours();
+    setGreeting(hour < 12 ? 'Good morning' : 'Good afternoon');
+
+    async function loadSchedule() {
+      setLoadingSchedule(true);
+      const status = await fetchScheduleStatus();
+      setSchedule(status);
+      setLoadingSchedule(false);
     }
+    loadSchedule();
+
+    const interval = setInterval(loadSchedule, 60000);
+    return () => clearInterval(interval);
   }, []);
 
-  // Fetch absences
-  useEffect(() => {
-    fetchAbsences().then((list) => {
-      setAbsentTeachers(list);
-      if (list.length > 0 && !selectedTeacherId) {
-        const match = list.find((t) => t.periods.includes(selectedPeriod)) || list[0];
-        if (match) setSelectedTeacherId(match.id);
-      }
-    });
-  }, [selectedPeriod]);
+  // Compute effective schedule based on simulatedState or real status
+  const effectiveStatus = React.useMemo(() => {
+    if (!schedule) return null;
+    if (simulatedState === 'auto') return schedule;
 
-  // Elapsed timer for active pass
-  useEffect(() => {
-    if (!activePass) return;
-    const start = new Date(activePass.checkInTime).getTime();
-
-    const update = () => {
-      const now = Date.now();
-      const mins = Math.floor((now - start) / 60000);
-      setElapsedMinutes(mins);
-    };
-
-    update();
-    const interval = setInterval(update, 30000);
-    return () => clearInterval(interval);
-  }, [activePass]);
-
-  const handleCheckInSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!studentName.trim()) {
-      setErrorMsg('Please enter your full name');
-      return;
+    if (simulatedState === 'in_session') {
+      return {
+        ...schedule,
+        hasSchool: true,
+        status: 'in_session' as const,
+        period: schedule.period || '4',
+        periodStart: '11:08:00',
+        periodEnd: '11:51:00',
+        message: 'Current: Period 4'
+      };
     }
-
-    const teacher = absentTeachers.find((t) => t.id === selectedTeacherId);
-    if (scenario === 'TEACHER_ABSENT' && !teacher) {
-      setErrorMsg('Please select an absent teacher');
-      return;
+    if (simulatedState === 'not_started') {
+      return {
+        ...schedule,
+        hasSchool: true,
+        status: 'not_started' as const,
+        period: null,
+        message: "School hasn't started yet!"
+      };
     }
-
-    setSubmitting(true);
-    setErrorMsg('');
-
-    try {
-      const pass = await createCheckIn({
-        studentName: studentName.trim(),
-        studentEmail: studentEmail.trim() || undefined,
-        studentId: studentId.trim() || undefined,
-        academy,
-        grade,
-        period: selectedPeriod,
-        scenario,
-        absentTeacherId: scenario === 'TEACHER_ABSENT' ? teacher?.id : undefined,
-        absentTeacherName: scenario === 'TEACHER_ABSENT' ? teacher?.teacherName : undefined,
-      });
-
-      setActivePass(pass);
-      localStorage.setItem('bca_upper_cafe_active_pass_id', pass.id);
-    } catch (_err) {
-      setErrorMsg('Failed to check in. Please try again.');
-    } finally {
-      setSubmitting(false);
+    if (simulatedState === 'ended') {
+      return {
+        ...schedule,
+        hasSchool: true,
+        status: 'ended' as const,
+        period: null,
+        message: 'No school for the rest of the day!'
+      };
     }
-  };
-
-  const handleCheckOut = async () => {
-    if (!activePass) return;
-    setSubmitting(true);
-    try {
-      await checkOutStudent(activePass.id);
-      setActivePass(null);
-      localStorage.removeItem('bca_upper_cafe_active_pass_id');
-      setStudentName('');
-      setStudentEmail('');
-      setStudentId('');
-    } finally {
-      setSubmitting(false);
+    if (simulatedState === 'no_school') {
+      return {
+        ...schedule,
+        hasSchool: false,
+        status: 'no_school' as const,
+        period: null,
+        message: 'No school today!'
+      };
     }
-  };
+    return schedule;
+  }, [schedule, simulatedState]);
 
-  const filteredTeachers = absentTeachers.filter((t) => {
-    const matchesPeriod = t.periods.includes(selectedPeriod);
-    const matchesQuery =
-      t.teacherName.toLowerCase().includes(teacherSearch.toLowerCase()) ||
-      t.department.toLowerCase().includes(teacherSearch.toLowerCase());
-    return matchesPeriod && matchesQuery;
-  });
+  if (authLoading || loadingSchedule || !effectiveStatus) {
+    return (
+      <div className="min-h-[60vh] flex items-center justify-center">
+        <div className="animate-spin w-8 h-8 rounded-full border-2 border-[#6355D8] border-t-transparent" />
+      </div>
+    );
+  }
+
+  // Determine button availability per user specifications
+  // In session: both enabled
+  // No school today: both disabled ("No school today!")
+  // Before school: check-in disabled ("School hasn't started yet!"), teacher attendance enabled
+  // After school: both disabled ("No school for the rest of the day!")
+  const canCheckIn = effectiveStatus.status === 'in_session';
+  const canViewAttendance = effectiveStatus.status !== 'no_school' && effectiveStatus.status !== 'ended';
 
   return (
-    <div className="max-w-xl mx-auto px-4 py-8 sm:py-12 w-full">
-      {activePass ? (
-        // Clean Active Pass View
-        <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm">
-          <div className="flex items-center justify-between border-b border-slate-100 pb-4 mb-5">
-            <div className="flex items-center gap-2">
-              <span className="w-2.5 h-2.5 rounded-full bg-emerald-600" />
-              <span className="text-xs font-semibold uppercase tracking-wider text-emerald-800">
-                Currently Checked In
-              </span>
-            </div>
-            <span className="text-xs font-bold bg-slate-100 text-slate-700 px-2 py-0.5 rounded">
-              Period {activePass.period}
-            </span>
-          </div>
+    <main className="max-w-[680px] mx-auto px-6 py-12 space-y-10">
+      {/* Header Greeting */}
+      <header className="space-y-2">
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#111111]">
+          {greeting} 👋 {user?.name || 'Student'}
+        </h1>
+        <p className="text-[#666666] text-sm">
+          Welcome to BCA Upper Cafe attendance tracking and teacher absence directory.
+        </p>
+      </header>
 
-          <div className="mb-6">
-            <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
-              {activePass.studentName}
-            </h1>
-            <p className="text-sm text-slate-500 mt-1">
-              {activePass.academy} • Grade {activePass.grade} {activePass.studentId ? `• ID #${activePass.studentId}` : ''}
-            </p>
-          </div>
-
-          <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 space-y-2 text-sm mb-6">
-            <div className="flex justify-between">
-              <span className="text-slate-500">Reason:</span>
-              <span className="font-semibold text-slate-800">
-                {activePass.scenario === 'DEFAULT_STUDY_HALL'
-                  ? 'Scheduled Study Hall'
-                  : `Absence: ${activePass.absentTeacherName || 'Class'}`}
-              </span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-slate-500">Checked in at:</span>
-              <span className="font-semibold text-slate-800">
-                {new Date(activePass.checkInTime).toLocaleTimeString([], {
-                  hour: '2-digit',
-                  minute: '2-digit',
-                })}
-              </span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-slate-500">Duration:</span>
-              <span className="font-semibold text-slate-800">{elapsedMinutes} minutes</span>
-            </div>
-          </div>
-
-          <button
-            type="button"
-            disabled={submitting}
-            onClick={handleCheckOut}
-            className="w-full bg-slate-900 hover:bg-slate-800 text-white font-semibold py-2.5 px-4 rounded-lg text-sm transition-colors cursor-pointer"
-          >
-            {submitting ? 'Checking Out...' : 'Check Out of Upper Cafe'}
-          </button>
+      {/* Period / School Status Display */}
+      <section className="p-6 rounded-2xl border border-[#eaeaea] bg-white space-y-4">
+        <div className="flex items-center justify-between text-xs text-[#666666]">
+          <span className="uppercase tracking-wider font-semibold">Today&apos;s Schedule</span>
+          <span className="flex items-center gap-1">
+            <Calendar className="w-3.5 h-3.5" />
+            {effectiveStatus.date}
+          </span>
         </div>
-      ) : (
-        // Clean Light Check-In Form
-        <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm">
-          <div className="border-b border-slate-100 pb-4 mb-6">
-            <h1 className="text-xl font-bold text-slate-900 tracking-tight">
-              Upper Cafe Study Hall Check-In
-            </h1>
-            <p className="text-xs text-slate-500 mt-1">
-              Check in for your scheduled study hall or absent teacher coverage.
-            </p>
-          </div>
 
-          <form onSubmit={handleCheckInSubmit} className="space-y-5">
-            {/* Reason Selection */}
-            <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-2">
-                1. Select Reason
-              </label>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                <button
-                  type="button"
-                  onClick={() => setScenario('DEFAULT_STUDY_HALL')}
-                  className={clsx(
-                    'p-3 rounded-lg border text-left transition-colors cursor-pointer',
-                    scenario === 'DEFAULT_STUDY_HALL'
-                      ? 'border-amber-500 bg-amber-50/50 text-slate-900'
-                      : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-700'
-                  )}
-                >
-                  <div className="font-semibold text-sm">Scheduled Study Hall</div>
-                  <div className="text-xs text-slate-500 mt-0.5">Assigned on Genesis schedule</div>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setScenario('TEACHER_ABSENT')}
-                  className={clsx(
-                    'p-3 rounded-lg border text-left transition-colors cursor-pointer',
-                    scenario === 'TEACHER_ABSENT'
-                      ? 'border-amber-500 bg-amber-50/50 text-slate-900'
-                      : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-700'
-                  )}
-                >
-                  <div className="font-semibold text-sm">Teacher is Absent</div>
-                  <div className="text-xs text-slate-500 mt-0.5">Class covered in Upper Cafe</div>
-                </button>
-              </div>
-            </div>
-
-            {/* Period Selection */}
-            <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-2">
-                2. Period
-              </label>
-              <div className="grid grid-cols-9 gap-1.5">
-                {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((p) => (
-                  <button
-                    key={p}
-                    type="button"
-                    onClick={() => setSelectedPeriod(p)}
-                    className={clsx(
-                      'py-2 rounded-md font-bold text-xs transition-colors cursor-pointer border',
-                      selectedPeriod === p
-                        ? 'bg-slate-900 text-white border-slate-900'
-                        : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100'
-                    )}
-                  >
-                    P{p}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* If Teacher Absent, select teacher */}
-            {scenario === 'TEACHER_ABSENT' && (
-              <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-2">
-                  3. Select Absent Teacher (Period {selectedPeriod})
-                </label>
-                {filteredTeachers.length > 0 ? (
-                  <div className="space-y-1.5 max-h-48 overflow-y-auto border border-slate-200 rounded-lg p-1.5">
-                    {filteredTeachers.map((t) => {
-                      const isSel = selectedTeacherId === t.id;
-                      return (
-                        <div
-                          key={t.id}
-                          onClick={() => setSelectedTeacherId(t.id)}
-                          className={clsx(
-                            'p-2.5 rounded-md text-xs cursor-pointer flex justify-between items-center transition-colors',
-                            isSel
-                              ? 'bg-amber-100 text-slate-900 font-semibold'
-                              : 'hover:bg-slate-50 text-slate-700'
-                          )}
-                        >
-                          <div>
-                            <div>{t.teacherName}</div>
-                            <div className="text-[11px] text-slate-500">{t.department}</div>
-                          </div>
-                          <span className="text-[10px] text-slate-500">Periods {t.periods.join(', ')}</span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-500">
-                    No teacher absences listed specifically for Period {selectedPeriod}.
-                  </div>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-1">
+          <div>
+            {effectiveStatus.status === 'in_session' && effectiveStatus.period && (
+              <div className="space-y-1">
+                <div className="text-xl font-bold text-[#111111] flex items-center gap-2">
+                  <span>Period {effectiveStatus.period}</span>
+                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-[#ECFDF5] text-[#059669] border border-[#A7F3D0]">
+                    In Session
+                  </span>
+                </div>
+                {effectiveStatus.periodStart && effectiveStatus.periodEnd && (
+                  <p className="text-xs text-[#666666] flex items-center gap-1">
+                    <Clock className="w-3 h-3" />
+                    {effectiveStatus.periodStart.slice(0, 5)} &ndash; {effectiveStatus.periodEnd.slice(0, 5)}
+                  </p>
                 )}
               </div>
             )}
 
-            {/* Student Details */}
-            <div className="space-y-3 pt-1">
-              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600">
-                {scenario === 'TEACHER_ABSENT' ? '4.' : '3.'} Student Details
-              </label>
-
-              <div>
-                <input
-                  type="text"
-                  required
-                  value={studentName}
-                  onChange={(e) => setStudentName(e.target.value)}
-                  placeholder="Full Name *"
-                  className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-slate-400"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-2.5">
-                <input
-                  type="email"
-                  value={studentEmail}
-                  onChange={(e) => setStudentEmail(e.target.value)}
-                  placeholder="BCA Email (@bergen.org)"
-                  className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-slate-400"
-                />
-                <input
-                  type="text"
-                  value={studentId}
-                  onChange={(e) => setStudentId(e.target.value)}
-                  placeholder="Student ID #"
-                  className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-slate-400"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-2.5">
-                <select
-                  value={academy}
-                  onChange={(e) => setAcademy(e.target.value as Academy)}
-                  className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-900 focus:outline-none focus:border-slate-400"
-                >
-                  {ACADEMIES.map((a) => (
-                    <option key={a} value={a}>
-                      {a}
-                    </option>
-                  ))}
-                </select>
-
-                <select
-                  value={grade}
-                  onChange={(e) => setGrade(e.target.value as any)}
-                  className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-900 focus:outline-none focus:border-slate-400"
-                >
-                  <option value="9">Grade 9</option>
-                  <option value="10">Grade 10</option>
-                  <option value="11">Grade 11</option>
-                  <option value="12">Grade 12</option>
-                </select>
-              </div>
-            </div>
-
-            {errorMsg && (
-              <div className="p-2.5 rounded-lg bg-red-50 border border-red-200 text-red-700 text-xs font-medium">
-                {errorMsg}
+            {effectiveStatus.status !== 'in_session' && (
+              <div className="space-y-1">
+                <div className="text-lg font-bold text-[#111111]">
+                  {effectiveStatus.message}
+                </div>
+                <p className="text-xs text-[#666666]">
+                  {effectiveStatus.status === 'no_school' && 'Enjoy your day off! Upper Cafe check-in is closed.'}
+                  {effectiveStatus.status === 'not_started' && 'Check-in opens when Period 1 begins at 08:00 AM.'}
+                  {effectiveStatus.status === 'ended' && 'All periods have completed for today.'}
+                </p>
               </div>
             )}
+          </div>
 
-            <button
-              type="submit"
-              disabled={submitting}
-              className="w-full bg-slate-900 hover:bg-slate-800 text-white font-semibold py-2.5 px-4 rounded-lg text-sm transition-colors cursor-pointer"
-            >
-              {submitting ? 'Checking In...' : 'Confirm Check-In'}
-            </button>
-          </form>
+          {effectiveStatus.scheduleType && (
+            <div className="text-xs px-3 py-1.5 rounded-xl bg-[#F9FAFB] border border-[#E5E7EB] text-[#4B5563] self-start sm:self-auto">
+              Schedule: <span className="font-semibold">{effectiveStatus.scheduleType}</span>
+            </div>
+          )}
         </div>
+      </section>
+
+      {/* Main Action Buttons (Duolingo 3D Button Style) */}
+      <section className="space-y-4">
+        {/* Check-In Button */}
+        {canCheckIn ? (
+          <Link
+            href="/check-in/code"
+            className="w-full btn-duo-purple py-4 px-6 text-base shadow-sm"
+          >
+            <span>Check-In to Upper Cafe</span>
+            <ArrowRight className="w-5 h-5 ml-2" />
+          </Link>
+        ) : (
+          <button
+            disabled
+            className="w-full btn-duo-disabled py-4 px-6 text-base"
+          >
+            <span>Check-In to Upper Cafe</span>
+          </button>
+        )}
+
+        {/* Teacher Attendance Button */}
+        {canViewAttendance ? (
+          <Link
+            href="/absences"
+            className="w-full btn-duo-secondary py-4 px-6 text-base"
+          >
+            <BookOpen className="w-5 h-5 mr-2 text-[#6355D8]" />
+            <span>Teacher Attendance</span>
+          </Link>
+        ) : (
+          <button
+            disabled
+            className="w-full btn-duo-disabled py-4 px-6 text-base"
+          >
+            <BookOpen className="w-5 h-5 mr-2 text-[#9CA3AF]" />
+            <span>Teacher Attendance</span>
+          </button>
+        )}
+      </section>
+
+      {/* Active Check-In Banner if student is already checked in */}
+      {activeCheckIn && (
+        <section className="p-5 rounded-2xl border-2 border-[#6355D8] bg-[#F5F3FF] flex items-center justify-between gap-4">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <CheckCircle className="w-4 h-4 text-[#6355D8]" />
+              <span className="font-bold text-sm text-[#2E1065]">
+                You are currently checked in for Period {activeCheckIn.period}
+              </span>
+            </div>
+            <p className="text-xs text-[#5B21B6]">
+              {activeCheckIn.reason === 'TEACHER_ABSENT'
+                ? `Teacher Absent: ${activeCheckIn.teacherName || 'Assigned Proctor'}`
+                : 'Study Hall'}
+            </p>
+          </div>
+          <Link
+            href="/check-out"
+            className="btn-duo-purple py-2 px-4 text-xs shrink-0"
+          >
+            Check Out &rarr;
+          </Link>
+        </section>
       )}
-    </div>
+
+      {/* Quick Schedule Simulation Switcher (for demonstration/testing) */}
+      <section className="pt-6 border-t border-[#eaeaea]">
+        <details className="text-xs text-[#666666]">
+          <summary className="cursor-pointer font-medium hover:text-[#111111] flex items-center gap-1.5 select-none">
+            <Sliders className="w-3.5 h-3.5" />
+            <span>Schedule Tester & Controls (Toggle School States)</span>
+          </summary>
+          <div className="pt-3 pb-1 flex flex-wrap items-center gap-2">
+            {[
+              { id: 'auto', label: 'Live Auto Schedule' },
+              { id: 'in_session', label: 'Simulate In Session (Period 4)' },
+              { id: 'not_started', label: 'Simulate Before School' },
+              { id: 'ended', label: 'Simulate After School' },
+              { id: 'no_school', label: 'Simulate No School Today' },
+            ].map(({ id, label }) => (
+              <button
+                key={id}
+                onClick={() => setSimulatedState(id)}
+                className={`px-3 py-1 rounded-lg font-medium border text-xs transition-all ${
+                  simulatedState === id
+                    ? 'bg-[#6355D8] text-white border-[#4A36B8]'
+                    : 'bg-white text-[#4B5563] border-[#E5E7EB] hover:border-[#6355D8]'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </details>
+      </section>
+    </main>
   );
 }

@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import './globals.css';
 import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
+import { AuthProvider } from '@/lib/auth';
 
 export const metadata: Metadata = {
   title: 'BCA Upper Cafe • Study Hall & Attendance',
@@ -15,10 +16,12 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className="bg-[#FAFAF7] text-slate-900 antialiased min-h-screen flex flex-col">
-        <Navbar />
-        <main className="flex-1 flex flex-col">{children}</main>
-        <Footer />
+      <body className="bg-white text-[#111111] antialiased min-h-screen flex flex-col selection:bg-brand-purple-subtle selection:text-brand-purple-deep">
+        <AuthProvider>
+          <Navbar />
+          <main className="flex-1 flex flex-col">{children}</main>
+          <Footer />
+        </AuthProvider>
       </body>
     </html>
   );

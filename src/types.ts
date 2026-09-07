@@ -9,42 +9,54 @@ export type Academy =
   | 'AVPA-T'
   | 'AVPA-V';
 
-export type CheckInScenario = 'DEFAULT_STUDY_HALL' | 'TEACHER_ABSENT';
+export type UserRole = 'student' | 'staff';
+
+export interface UserProfile {
+  id: string;
+  email: string;
+  name: string; // From Outlook, immutable
+  role: UserRole;
+}
+
+export type TeacherPronoun = 'Mr.' | 'Ms.' | 'Mrs.' | 'Dr.';
 
 export interface TeacherAbsence {
   id: string;
-  teacherName: string;
-  department: string;
+  pronoun: TeacherPronoun;
+  firstName: string;
+  lastName: string;
+  department?: string;
   date: string;
-  periods: number[];
-  room?: string;
+  periods: string[]; // e.g. ['1', 'IGS', '2', ...] or ['ALL_DAY']
+  isAllDay: boolean;
   notes?: string;
   createdAt: string;
 }
 
+export type CheckInReason = 'TEACHER_ABSENT' | 'STUDY_HALL';
+
 export interface CheckInRecord {
   id: string;
-  studentName: string;
+  studentName: string; // Permanent Outlook name
   studentEmail: string;
-  studentId: string;
-  academy: Academy | string;
-  grade: '9' | '10' | '11' | '12';
-  period: number;
-  scenario: CheckInScenario;
-  absentTeacherId?: string;
-  absentTeacherName?: string;
-  tableNumber?: string;
-  checkInTime: string;
-  checkOutTime?: string;
-  status: 'ACTIVE' | 'COMPLETED';
+  period: string;      // '1'-'9' or 'IGS'
+  reason: CheckInReason;
+  teacherName?: string;
+  teacherId?: string;
+  checkInTime: string;  // ISO timestamp
+  checkOutTime?: string; // ISO timestamp when checked out
+  status: 'ACTIVE' | 'CHECKED_OUT';
 }
 
-export interface CafeStats {
-  currentPeriod: number;
-  activeStudentsCount: number;
-  maxCapacity: number;
-  capacityPercentage: number;
-  todayAbsencesCount: number;
-  defaultStudyHallCount: number;
-  teacherAbsentCount: number;
+export interface ScheduleStatus {
+  hasSchool: boolean;
+  status: 'no_school' | 'not_started' | 'in_session' | 'ended';
+  scheduleType: string | null;
+  period: string | null;
+  periodStart: string | null;
+  periodEnd: string | null;
+  nextPeriod: string | null;
+  message: string;
+  date: string;
+  time: string;
 }
