@@ -34,9 +34,8 @@ export default function AbsencesPage() {
 
   const filteredTeachers = absences.filter((t) => {
     const fullName = `${t.pronoun} ${t.firstName} ${t.lastName}`.toLowerCase();
-    const dept = (t.department || '').toLowerCase();
-    const q = searchQuery.toLowerCase();
-    const matchesSearch = fullName.includes(q) || dept.includes(q);
+    const q = searchQuery.toLowerCase().trim();
+    const matchesSearch = !q || fullName.includes(q);
     if (!matchesSearch) return false;
 
     if (selectedFilter === 'All') return true;
@@ -64,18 +63,18 @@ export default function AbsencesPage() {
         </p>
       </header>
 
-      {/* Search Bar matching myBCA iOS search */}
+      {/* Search Bar */}
       <div>
         <input
           type="text"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder="Search teachers or departments..."
+          placeholder="Search teachers..."
           className="w-full px-3.5 py-2.5 rounded-lg border border-[#eaeaea] bg-[#f9f9f9] text-sm text-[#111111] focus:bg-white focus:outline-none focus:border-[#111111] transition-colors placeholder:text-[#999999]"
         />
       </div>
 
-      {/* Segmented Control / Tabs matching myBCA */}
+      {/* Segmented Control / Tabs */}
       <div className="flex items-center gap-1 overflow-x-auto pb-1 scrollbar-none border-b border-[#eaeaea]">
         {PERIOD_PILLS.map((p) => {
           const isSelected = selectedFilter === p;
@@ -106,13 +105,8 @@ export default function AbsencesPage() {
             const fullName = `${t.pronoun} ${t.firstName} ${t.lastName}`;
             return (
               <div key={t.id} className="py-3.5 flex items-center justify-between gap-3">
-                <div>
-                  <div className="text-sm font-semibold text-[#111111]">
-                    {fullName}
-                  </div>
-                  <div className="text-xs text-[#666666]">
-                    {t.department || 'Faculty'}
-                  </div>
+                <div className="text-sm font-semibold text-[#111111]">
+                  {fullName}
                 </div>
 
                 <div className="shrink-0">
@@ -127,4 +121,5 @@ export default function AbsencesPage() {
       </div>
     </main>
   );
+
 }

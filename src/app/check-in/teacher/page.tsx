@@ -91,7 +91,7 @@ function TeacherSelectionContent() {
                     {fullName}
                   </div>
                   <div className="text-xs text-[#666666]">
-                    {t.department} &middot; {t.isAllDay ? 'All Day' : `Period ${period}`}
+                    {t.isAllDay ? 'All Day' : `Period ${period}`}
                   </div>
                 </div>
                 <span className="text-xs text-[#111111] font-medium">
