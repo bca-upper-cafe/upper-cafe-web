@@ -1,16 +1,10 @@
 'use client';
 
 import React from 'react';
-import { usePathname } from 'next/navigation';
 
 export const Footer: React.FC = () => {
-  const pathname = usePathname();
   const currentYear = new Date().getFullYear();
   const yearDisplay = currentYear === 2026 ? '2026' : `2026 - ${currentYear}`;
-
-  if (pathname === '/login') {
-    return null;
-  }
 
   return (
     <footer className="border-t border-[#eaeaea] py-6 bg-white mt-auto text-xs text-[#666666]">
