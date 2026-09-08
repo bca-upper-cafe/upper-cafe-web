@@ -64,12 +64,12 @@ export default function HomePage() {
   const canViewAttendance = effective.status !== 'no_school' && effective.status !== 'ended';
 
   return (
-    <main className="max-w-5xl mx-auto px-6 sm:px-8 py-12 space-y-6">
-      <header className="space-y-1">
-        <h1 className="text-xl font-semibold tracking-tight text-[#111111]">
+    <main className="max-w-7xl mx-auto px-6 sm:px-10 lg:px-12 py-14 space-y-8">
+      <header className="space-y-1.5">
+        <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-[#111111]">
           {greeting} 👋 {user?.name || 'Student'}
         </h1>
-        <p className="text-sm text-[#666666]">
+        <p className="text-sm sm:text-base text-[#666666]">
           {effective.status === 'in_session' && effective.period && (
             <span>School is in session &middot; Period {effective.period}</span>
           )}

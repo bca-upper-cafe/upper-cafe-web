@@ -45,7 +45,7 @@ export default function AbsencesPage() {
   });
 
   return (
-    <main className="max-w-5xl mx-auto px-6 sm:px-8 py-10 space-y-6">
+    <main className="max-w-7xl mx-auto px-6 sm:px-10 lg:px-12 py-12 space-y-8">
       <Link
         href="/"
         className="text-xs text-[#666666] hover:text-[#111111] transition-colors"
@@ -53,8 +53,8 @@ export default function AbsencesPage() {
         &larr; Back to Home
       </Link>
 
-      <header className="space-y-1">
-        <h1 className="text-xl font-semibold tracking-tight text-[#111111]">
+      <header className="space-y-1.5">
+        <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-[#111111]">
           Teacher Attendance
         </h1>
         <p className="text-sm text-[#666666]">

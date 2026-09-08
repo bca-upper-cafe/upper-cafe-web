@@ -11,7 +11,7 @@ export const Navbar: React.FC = () => {
 
   return (
     <header className="bg-white border-b border-[#eaeaea] sticky top-0 z-40">
-      <div className="max-w-5xl mx-auto px-6 sm:px-8 h-14 flex items-center justify-between gap-4">
+      <div className="max-w-7xl mx-auto px-6 sm:px-10 lg:px-12 h-14 flex items-center justify-between gap-4">
         {/* Brand */}
         <Link href={user?.role === 'staff' ? '/admin' : '/'} className="flex items-center gap-2">
           <span className="font-semibold text-base tracking-tight text-[#111111]">

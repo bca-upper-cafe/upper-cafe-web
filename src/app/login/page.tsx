@@ -26,7 +26,7 @@ export default function LoginPage() {
   };
 
   return (
-    <main className="max-w-2xl mx-auto px-6 sm:px-8 py-20 space-y-8 text-left">
+    <main className="max-w-4xl mx-auto px-6 sm:px-10 lg:px-12 py-20 space-y-8 text-left">
       <header className="space-y-2">
         <h1 className="text-xl font-semibold tracking-tight text-[#111111]">
           bcaupper.cafe

@@ -103,12 +103,12 @@ export default function AdminDashboardPage() {
   });
 
   return (
-    <main className="max-w-5xl mx-auto px-6 sm:px-8 py-10 space-y-6">
-      <header className="space-y-1">
-        <h1 className="text-xl font-semibold tracking-tight text-[#111111]">
+    <main className="max-w-7xl mx-auto px-6 sm:px-10 lg:px-12 py-12 space-y-8">
+      <header className="space-y-1.5">
+        <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-[#111111]">
           Upper Cafe Admin Desk
         </h1>
-        <p className="text-sm text-[#666666]">
+        <p className="text-sm sm:text-base text-[#666666]">
           Logged in as {user?.name || 'Staff'}. Manage check-in rosters and teacher absences.
         </p>
       </header>

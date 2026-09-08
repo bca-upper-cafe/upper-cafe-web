@@ -29,7 +29,7 @@ function ReasonSelectionContent() {
   };
 
   return (
-    <main className="max-w-2xl mx-auto px-6 sm:px-8 py-12 space-y-6">
+    <main className="max-w-4xl mx-auto px-6 sm:px-10 lg:px-12 py-14 space-y-6">
       <Link
         href="/check-in/code"
         className="text-xs text-[#666666] hover:text-[#111111] transition-colors"
