@@ -57,27 +57,27 @@ export default function EnterCafeCodePage() {
   };
 
   return (
-    <main className="max-w-4xl mx-auto px-6 sm:px-10 lg:px-12 py-14 space-y-6">
-      <Link
-        href="/"
-        className="text-xs text-[#666666] hover:text-[#111111] transition-colors"
-      >
-        &larr; Back
-      </Link>
+    <main className="w-full max-w-3xl mx-auto px-6 sm:px-10 py-16 space-y-8">
+      <div>
+        <Link
+          href="/"
+          className="text-xs text-[#666666] hover:text-[#111111] transition-colors"
+        >
+          &larr; Back to Home
+        </Link>
+      </div>
 
-      <header className="space-y-1">
-        <h1 className="text-xl font-semibold tracking-tight text-[#111111]">
+      <header className="space-y-2 border-b border-[#eaeaea] pb-6">
+        <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-[#111111]">
           Enter Cafe Code.
         </h1>
-        <p className="text-sm text-[#666666]">
-          Enter the 6-character code displayed on the screen in Upper Cafe.
+        <p className="text-sm sm:text-base text-[#666666]">
+          Enter the 6-character code currently displayed on the screens inside Upper Cafe.
         </p>
       </header>
 
-      <hr className="border-none border-t border-[#eaeaea]" />
-
-      <form onSubmit={handleNext} className="space-y-4">
-        <div>
+      <form onSubmit={handleNext} className="space-y-6">
+        <div className="space-y-3">
           <input
             type="text"
             value={code}
@@ -87,37 +87,37 @@ export default function EnterCafeCodePage() {
             autoFocus
             autoComplete="off"
             spellCheck="false"
-            className="w-full h-12 px-4 rounded-lg border border-[#eaeaea] bg-white text-lg font-mono tracking-widest text-[#111111] focus:outline-none focus:border-[#111111] transition-colors placeholder:text-[#cccccc]"
+            className="w-full h-16 px-6 rounded-xl border border-[#eaeaea] bg-white text-2xl font-mono tracking-[0.4em] text-[#111111] text-center focus:outline-none focus:border-[#111111] transition-colors placeholder:text-[#cccccc]"
           />
+
+          {error && (
+            <p className="text-sm text-[#b91c1c]">{error}</p>
+          )}
+
+          {currentValidCode && (
+            <p className="text-xs text-[#666666]">
+              Display code preview:{' '}
+              <button
+                type="button"
+                onClick={() => setCode(currentValidCode)}
+                className="underline font-mono text-[#111111]"
+              >
+                {currentValidCode} (Click to auto-fill)
+              </button>
+            </p>
+          )}
         </div>
-
-        {error && (
-          <p className="text-xs text-[#b91c1c]">{error}</p>
-        )}
-
-        {currentValidCode && (
-          <p className="text-xs text-[#666666]">
-            Display code:{' '}
-            <button
-              type="button"
-              onClick={() => setCode(currentValidCode)}
-              className="underline text-[#111111]"
-            >
-              {currentValidCode}
-            </button>
-          </p>
-        )}
 
         <button
           type="submit"
           disabled={code.length < 6 || verifying}
-          className={`w-full py-2.5 text-sm ${
+          className={`w-full h-14 text-base ${
             code.length === 6 && !verifying
               ? 'btn-minimal-primary'
               : 'btn-minimal-disabled'
           }`}
         >
-          {verifying ? 'Verifying...' : 'Next \u2192'}
+          {verifying ? 'Verifying Code...' : 'Next \u2192'}
         </button>
       </form>
     </main>

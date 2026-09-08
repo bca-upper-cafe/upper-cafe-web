@@ -37,11 +37,11 @@ export default function CheckOutPage() {
 
   if (justCheckedOut || !activeCheckIn) {
     return (
-      <main className="max-w-2xl mx-auto px-6 sm:px-8 py-20 space-y-3">
-        <h1 className="text-xl font-semibold tracking-tight text-[#111111]">
+      <main className="w-full max-w-3xl mx-auto px-6 sm:px-10 py-24 space-y-3">
+        <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-[#111111]">
           Checked Out.
         </h1>
-        <p className="text-sm text-[#666666]">
+        <p className="text-sm sm:text-base text-[#666666]">
           Your sign-in record has been logged. Returning to home...
         </p>
       </main>
@@ -54,28 +54,26 @@ export default function CheckOutPage() {
   });
 
   return (
-    <main className="max-w-2xl mx-auto px-6 sm:px-8 py-12 space-y-6">
-      <header className="space-y-1">
-        <h1 className="text-xl font-semibold tracking-tight text-[#111111]">
+    <main className="w-full max-w-3xl mx-auto px-6 sm:px-10 py-16 space-y-8">
+      <header className="space-y-2 border-b border-[#eaeaea] pb-6">
+        <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-[#111111]">
           Upper Cafe Check-Out
         </h1>
-        <p className="text-sm text-[#666666]">
-          You are currently signed into Upper Cafe. When leaving, please check out.
+        <p className="text-sm sm:text-base text-[#666666]">
+          You are currently signed into Upper Cafe. When the bell rings or you leave the cafe, please check out.
         </p>
       </header>
 
-      <hr className="border-none border-t border-[#eaeaea]" />
-
-      <div className="border border-[#eaeaea] rounded-lg p-5 space-y-3 text-sm">
-        <div className="flex justify-between">
-          <span className="text-[#666666]">Student:</span>
+      <div className="border border-[#eaeaea] rounded-xl p-6 sm:p-8 bg-white space-y-4 text-sm sm:text-base">
+        <div className="flex justify-between py-1 border-b border-[#eaeaea]">
+          <span className="text-[#666666]">Student Name:</span>
           <span className="font-semibold text-[#111111]">{activeCheckIn.studentName}</span>
         </div>
-        <div className="flex justify-between">
+        <div className="flex justify-between py-1 border-b border-[#eaeaea]">
           <span className="text-[#666666]">Period:</span>
           <span className="font-semibold text-[#111111]">Period {activeCheckIn.period}</span>
         </div>
-        <div className="flex justify-between">
+        <div className="flex justify-between py-1 border-b border-[#eaeaea]">
           <span className="text-[#666666]">Reason:</span>
           <span className="text-[#111111]">
             {activeCheckIn.reason === 'TEACHER_ABSENT'
@@ -83,8 +81,8 @@ export default function CheckOutPage() {
               : 'Study Hall'}
           </span>
         </div>
-        <div className="flex justify-between">
-          <span className="text-[#666666]">Signed in at:</span>
+        <div className="flex justify-between py-1">
+          <span className="text-[#666666]">Signed In At:</span>
           <span className="font-mono text-[#111111]">{checkInTimeFormatted}</span>
         </div>
       </div>
@@ -92,7 +90,7 @@ export default function CheckOutPage() {
       <button
         onClick={handleCheckOut}
         disabled={checkingOut}
-        className="w-full btn-minimal-primary py-3 text-sm"
+        className="w-full h-14 btn-minimal-primary text-base"
       >
         {checkingOut ? 'Checking out...' : 'Check Out \u2192'}
       </button>
@@ -100,9 +98,9 @@ export default function CheckOutPage() {
       <div className="pt-2 text-center">
         <Link
           href="/absences"
-          className="text-xs text-[#666666] hover:text-[#111111] underline underline-offset-3"
+          className="text-xs sm:text-sm text-[#666666] hover:text-[#111111] underline underline-offset-3"
         >
-          View Teacher Attendance &rarr;
+          View Teacher Attendance Directory &rarr;
         </Link>
       </div>
     </main>

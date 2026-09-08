@@ -54,7 +54,7 @@ export default function HomePage() {
 
   if (authLoading || loadingSchedule || !effective) {
     return (
-      <main className="max-w-[580px] mx-auto px-6 py-20">
+      <main className="w-full max-w-7xl mx-auto px-6 sm:px-10 lg:px-12 py-20">
         <p className="text-sm text-[#666666]">Loading schedule...</p>
       </main>
     );
@@ -64,114 +64,165 @@ export default function HomePage() {
   const canViewAttendance = effective.status !== 'no_school' && effective.status !== 'ended';
 
   return (
-    <main className="max-w-7xl mx-auto px-6 sm:px-10 lg:px-12 py-14 space-y-8">
-      <header className="space-y-1.5">
-        <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-[#111111]">
+    <main className="w-full max-w-7xl mx-auto px-6 sm:px-10 lg:px-12 py-12 space-y-10">
+      {/* Header */}
+      <header className="space-y-2 border-b border-[#eaeaea] pb-6">
+        <h1 className="text-2xl sm:text-4xl font-semibold tracking-tight text-[#111111]">
           {greeting} 👋 {user?.name || 'Student'}
         </h1>
         <p className="text-sm sm:text-base text-[#666666]">
-          {effective.status === 'in_session' && effective.period && (
-            <span>School is in session &middot; Period {effective.period}</span>
-          )}
-          {effective.status !== 'in_session' && (
-            <span>{effective.message}</span>
-          )}
+          Bergen County Academies Upper Cafe attendance tracking and teacher absences directory.
         </p>
       </header>
 
-      <hr className="border-none border-t border-[#eaeaea]" />
-
       {/* Active Check-In Banner */}
       {activeCheckIn && (
-        <div className="p-4 rounded-lg border border-[#111111] bg-[#fafafa] space-y-2">
-          <div className="text-xs uppercase tracking-wider font-semibold text-[#111111]">
-            Active Sign-In
+        <div className="p-6 rounded-xl border border-[#111111] bg-[#fafafa] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="space-y-1">
+            <div className="text-xs uppercase tracking-wider font-semibold text-[#111111]">
+              Active Upper Cafe Sign-In
+            </div>
+            <p className="text-sm sm:text-base text-[#111111]">
+              You are currently signed into Upper Cafe for <strong>Period {activeCheckIn.period}</strong> ({activeCheckIn.reason === 'TEACHER_ABSENT' ? `Absent Teacher: ${activeCheckIn.teacherName}` : 'Study Hall'}).
+            </p>
           </div>
-          <p className="text-sm text-[#111111]">
-            You are signed into Upper Cafe for <strong>Period {activeCheckIn.period}</strong> ({activeCheckIn.reason === 'TEACHER_ABSENT' ? `Absent Teacher: ${activeCheckIn.teacherName}` : 'Study Hall'}).
-          </p>
-          <div>
-            <Link
-              href="/check-out"
-              className="text-xs font-semibold text-[#111111] underline underline-offset-3"
-            >
-              Go to Check Out &rarr;
-            </Link>
-          </div>
+          <Link
+            href="/check-out"
+            className="btn-minimal-primary py-2.5 px-6 text-sm shrink-0 text-center"
+          >
+            Go to Check Out &rarr;
+          </Link>
         </div>
       )}
 
-      {/* Action Buttons */}
-      <section className="space-y-3">
-        <div className="text-xs uppercase tracking-wider text-[#666666] font-semibold">
-          Actions
+      {/* Spacious 2-Column Desktop Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {/* Left Column: Schedule Overview Card */}
+        <section className="p-8 rounded-xl border border-[#eaeaea] bg-white space-y-6 flex flex-col justify-between">
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <span className="text-xs uppercase tracking-wider font-semibold text-[#666666]">
+                Today&apos;s Schedule
+              </span>
+              <span className="text-xs text-[#888888] font-mono">
+                {effective.date}
+              </span>
+            </div>
+
+            {effective.status === 'in_session' && effective.period ? (
+              <div className="space-y-2 pt-2">
+                <div className="text-3xl sm:text-4xl font-bold tracking-tight text-[#111111]">
+                  Period {effective.period}
+                </div>
+                {effective.periodStart && effective.periodEnd && (
+                  <p className="text-sm text-[#666666] font-mono">
+                    {effective.periodStart.slice(0, 5)} &ndash; {effective.periodEnd.slice(0, 5)}
+                  </p>
+                )}
+                <div className="pt-2">
+                  <span className="inline-block text-xs font-semibold px-2.5 py-1 rounded bg-[#f5f5f5] text-[#111111]">
+                    In Session
+                  </span>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-2 pt-2">
+                <div className="text-2xl font-bold tracking-tight text-[#111111]">
+                  {effective.message}
+                </div>
+                <p className="text-sm text-[#666666]">
+                  {effective.status === 'no_school' && 'Upper Cafe is closed today for holiday/weekend.'}
+                  {effective.status === 'not_started' && 'Sign-in opens when Period 1 begins at 08:00 AM.'}
+                  {effective.status === 'ended' && 'All scheduled periods have ended for today.'}
+                </p>
+              </div>
+            )}
+          </div>
+
+          <div className="pt-4 border-t border-[#eaeaea] text-xs text-[#888888] flex items-center justify-between">
+            <span>Schedule Type: {effective.scheduleType || 'Standard'}</span>
+            <span>Hackensack, NJ</span>
+          </div>
+        </section>
+
+        {/* Right Column: Actions Card */}
+        <section className="p-8 rounded-xl border border-[#eaeaea] bg-white space-y-6 flex flex-col justify-between">
+          <div className="space-y-4">
+            <div className="text-xs uppercase tracking-wider font-semibold text-[#666666]">
+              Quick Actions
+            </div>
+
+            <div className="space-y-3 pt-1">
+              {canCheckIn ? (
+                <Link
+                  href="/check-in/code"
+                  className="w-full h-14 btn-minimal-primary text-base flex items-center justify-center gap-2"
+                >
+                  <span>Sign-In to Upper Cafe</span>
+                  <span>&rarr;</span>
+                </Link>
+              ) : (
+                <button
+                  disabled
+                  className="w-full h-14 btn-minimal-disabled text-base"
+                >
+                  Sign-In to Upper Cafe
+                </button>
+              )}
+
+              {canViewAttendance ? (
+                <Link
+                  href="/absences"
+                  className="w-full h-14 btn-minimal-secondary text-base flex items-center justify-center gap-2"
+                >
+                  <span>Teacher Attendance Directory</span>
+                  <span>&rarr;</span>
+                </Link>
+              ) : (
+                <button
+                  disabled
+                  className="w-full h-14 btn-minimal-disabled text-base"
+                >
+                  Teacher Attendance Directory
+                </button>
+              )}
+            </div>
+          </div>
+
+          <p className="text-xs text-[#888888] leading-relaxed">
+            Please make sure you have the 6-character Cafe Code displayed on the room screens before initiating sign-in.
+          </p>
+        </section>
+      </div>
+
+      {/* About Section */}
+      <section className="p-8 rounded-xl border border-[#eaeaea] bg-white space-y-3">
+        <div className="text-xs uppercase tracking-wider font-semibold text-[#666666]">
+          Upper Cafe Attendance Guidelines
         </div>
-
-        <div className="flex flex-col sm:flex-row gap-2.5">
-          {canCheckIn ? (
-            <Link
-              href="/check-in/code"
-              className="btn-minimal-primary py-2.5 px-5 text-sm flex-1 text-center"
-            >
-              Sign-In to Upper Cafe &rarr;
-            </Link>
-          ) : (
-            <button
-              disabled
-              className="btn-minimal-disabled py-2.5 px-5 text-sm flex-1"
-            >
-              Sign-In to Upper Cafe
-            </button>
-          )}
-
-          {canViewAttendance ? (
-            <Link
-              href="/absences"
-              className="btn-minimal-secondary py-2.5 px-5 text-sm flex-1 text-center"
-            >
-              Teacher Attendance &rarr;
-            </Link>
-          ) : (
-            <button
-              disabled
-              className="btn-minimal-disabled py-2.5 px-5 text-sm flex-1"
-            >
-              Teacher Attendance
-            </button>
-          )}
-        </div>
-      </section>
-
-      <hr className="border-none border-t border-[#eaeaea]" />
-
-      {/* About & Instructions */}
-      <section className="space-y-2 text-sm text-[#666666] leading-relaxed">
-        <div className="text-xs uppercase tracking-wider text-[#666666] font-semibold">
-          About
-        </div>
-        <p>
-          Students assigned to Upper Cafe for study hall or due to teacher absences must sign in using the 6-character Cafe Code displayed in the room.
+        <p className="text-sm text-[#666666] leading-relaxed">
+          Bergen County Academies requires all students present in Upper Cafe during study hall or teacher absence periods to sign in upon arrival. Check out when the bell rings or if excused by a supervising proctor.
         </p>
       </section>
 
-      {/* Minimal simulation controls */}
-      <div className="pt-4 border-t border-[#eaeaea]">
+      {/* Minimal Simulation Controls */}
+      <div className="pt-2 border-t border-[#eaeaea]">
         <details className="text-xs text-[#888888]">
           <summary className="cursor-pointer hover:text-[#111111]">
-            Schedule Tester Controls
+            Schedule Simulation Controls
           </summary>
-          <div className="pt-2 flex flex-wrap gap-2">
+          <div className="pt-3 flex flex-wrap gap-2">
             {[
-              { id: 'auto', label: 'Auto' },
-              { id: 'in_session', label: 'In Session' },
-              { id: 'not_started', label: 'Before School' },
-              { id: 'ended', label: 'After School' },
-              { id: 'no_school', label: 'No School' },
+              { id: 'auto', label: 'Auto (Live Time)' },
+              { id: 'in_session', label: 'Simulate In Session' },
+              { id: 'not_started', label: 'Simulate Before School' },
+              { id: 'ended', label: 'Simulate After School' },
+              { id: 'no_school', label: 'Simulate No School' },
             ].map(({ id, label }) => (
               <button
                 key={id}
                 onClick={() => setSimState(id)}
-                className={`px-2 py-1 text-xs rounded border ${
+                className={`px-3 py-1.5 text-xs rounded-md border ${
                   simState === id
                     ? 'bg-[#111111] text-white border-[#111111]'
                     : 'bg-white text-[#666666] border-[#eaeaea] hover:text-[#111111]'

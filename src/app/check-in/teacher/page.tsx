@@ -45,72 +45,72 @@ function TeacherSelectionContent() {
   };
 
   return (
-    <main className="max-w-4xl mx-auto px-6 sm:px-10 lg:px-12 py-14 space-y-6">
-      <Link
-        href={`/check-in/reason?period=${period}`}
-        className="text-xs text-[#666666] hover:text-[#111111] transition-colors"
-      >
-        &larr; Back
-      </Link>
+    <main className="w-full max-w-4xl mx-auto px-6 sm:px-10 py-16 space-y-8">
+      <div>
+        <Link
+          href={`/check-in/reason?period=${period}`}
+          className="text-xs text-[#666666] hover:text-[#111111] transition-colors"
+        >
+          &larr; Back to Reason
+        </Link>
+      </div>
 
-      <header className="space-y-1">
-        <h1 className="text-xl font-semibold tracking-tight text-[#111111]">
+      <header className="space-y-2 border-b border-[#eaeaea] pb-6">
+        <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-[#111111]">
           Select Absent Teacher
         </h1>
-        <p className="text-sm text-[#666666]">
-          Period {period} &middot; Select your teacher to complete sign-in.
+        <p className="text-sm sm:text-base text-[#666666]">
+          Period {period} &middot; Select the teacher whose absent class you are reporting to Upper Cafe for.
         </p>
       </header>
 
-      <hr className="border-none border-t border-[#eaeaea]" />
-
-      <div className="space-y-2">
-        {absences.length === 0 ? (
-          <div className="p-6 rounded-lg border border-[#eaeaea] text-center space-y-2">
-            <p className="text-sm text-[#666666]">
-              No absent teachers logged for Period {period}.
-            </p>
-            <button
-              onClick={handleSelectOther}
-              className="text-xs font-semibold text-[#111111] underline underline-offset-3"
-            >
-              Sign in with Unlisted Teacher &rarr;
-            </button>
-          </div>
-        ) : (
-          absences.map((t) => {
+      {absences.length === 0 ? (
+        <div className="p-8 rounded-xl border border-[#eaeaea] text-center space-y-3 bg-[#fafafa]">
+          <p className="text-sm text-[#666666]">
+            No absent teachers are currently logged for Period {period}.
+          </p>
+          <button
+            onClick={handleSelectOther}
+            className="text-sm font-semibold text-[#111111] underline underline-offset-3 cursor-pointer"
+          >
+            Sign in with Unlisted Teacher &rarr;
+          </button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {absences.map((t) => {
             const fullName = `${t.pronoun} ${t.firstName} ${t.lastName}`;
             return (
               <div
                 key={t.id}
                 onClick={() => !submitting && handleSelect(t)}
-                className="p-3.5 rounded-lg border border-[#eaeaea] bg-white hover:border-[#111111] transition-colors cursor-pointer flex items-center justify-between select-none"
+                className="p-5 rounded-xl border border-[#eaeaea] bg-white hover:border-[#111111] transition-all cursor-pointer flex items-center justify-between gap-3 select-none shadow-xs"
               >
                 <div>
-                  <div className="text-sm font-medium text-[#111111]">
+                  <div className="text-base font-semibold text-[#111111]">
                     {fullName}
                   </div>
-                  <div className="text-xs text-[#666666]">
-                    {t.isAllDay ? 'All Day' : `Period ${period}`}
+                  <div className="text-xs text-[#666666] mt-0.5">
+                    {t.isAllDay ? 'Absent All Day' : `Period ${period}`}
                   </div>
                 </div>
-                <span className="text-xs text-[#111111] font-medium">
+                <span className="text-xs text-[#111111] font-semibold">
                   Select &rarr;
                 </span>
               </div>
             );
-          })
-        )}
-
-        <div className="pt-2">
-          <button
-            onClick={handleSelectOther}
-            disabled={submitting}
-            className="text-xs text-[#666666] hover:text-[#111111] underline underline-offset-3"
-          >
-            Teacher not listed? Sign in with Unlisted Teacher &rarr;
-          </button>
+          })}
         </div>
+      )}
+
+      <div className="pt-2">
+        <button
+          onClick={handleSelectOther}
+          disabled={submitting}
+          className="text-xs sm:text-sm text-[#666666] hover:text-[#111111] underline underline-offset-3 cursor-pointer"
+        >
+          Teacher not on this list? Sign in with Unlisted Teacher &rarr;
+        </button>
       </div>
     </main>
   );
@@ -118,7 +118,7 @@ function TeacherSelectionContent() {
 
 export default function TeacherSelectionPage() {
   return (
-    <Suspense fallback={<div className="max-w-[580px] mx-auto p-12 text-sm text-[#666666]">Loading...</div>}>
+    <Suspense fallback={<div className="max-w-4xl mx-auto p-12 text-sm text-[#666666]">Loading...</div>}>
       <TeacherSelectionContent />
     </Suspense>
   );

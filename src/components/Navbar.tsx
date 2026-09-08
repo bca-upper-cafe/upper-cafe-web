@@ -21,16 +21,18 @@ export const Navbar: React.FC = () => {
 
         {/* Navigation */}
         <nav className="flex items-center gap-5 text-xs">
-          <Link
-            href="/absences"
-            className={`transition-colors ${
-              pathname === '/absences'
-                ? 'text-[#111111] font-semibold underline underline-offset-4 decoration-[#d1d1d1]'
-                : 'text-[#666666] hover:text-[#111111]'
-            }`}
-          >
-            Teacher Attendance
-          </Link>
+          {user?.role !== 'staff' && (
+            <Link
+              href="/absences"
+              className={`transition-colors ${
+                pathname === '/absences'
+                  ? 'text-[#111111] font-semibold underline underline-offset-4 decoration-[#d1d1d1]'
+                  : 'text-[#666666] hover:text-[#111111]'
+              }`}
+            >
+              Teacher Attendance
+            </Link>
+          )}
 
           {user && (
             <>

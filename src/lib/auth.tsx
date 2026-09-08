@@ -94,19 +94,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    // 3. If student is checked in, lock to /check-out on all pages except /absences
+    // 3. Students cannot access admin routes -> redirect to /
+    if (user && user.role === 'student' && pathname.startsWith('/admin')) {
+      router.replace('/');
+      return;
+    }
+
+    // 4. Staff/Admins cannot access student routes (including /absences) -> redirect to /admin
+    const studentRoutes = ['/', '/absences', '/check-in/code', '/check-in/reason', '/check-in/teacher', '/check-out'];
+    if (user && user.role === 'staff' && (studentRoutes.includes(pathname) || pathname.startsWith('/check-in') || pathname.startsWith('/absences'))) {
+      router.replace('/admin');
+      return;
+    }
+
+    // 5. If student is checked in, lock to /check-out on all pages except /absences
     if (user && user.role === 'student' && activeCheckIn) {
       const allowedPaths = ['/check-out', '/absences'];
       if (!allowedPaths.includes(pathname)) {
         router.replace('/check-out');
         return;
       }
-    }
-
-    // 4. Staff-only protection for /admin
-    if (user && user.role === 'student' && pathname === '/admin') {
-      router.replace('/');
-      return;
     }
   }, [user, isLoading, activeCheckIn, pathname, router]);
 
