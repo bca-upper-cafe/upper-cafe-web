@@ -26,63 +26,72 @@ export default function LoginPage() {
   };
 
   return (
-    <main className="w-full max-w-3xl mx-auto px-6 sm:px-10 py-24 space-y-10 text-left">
-      <header className="space-y-2 border-b border-[#eaeaea] pb-6">
-        <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-[#111111]">
-          bcaupper.cafe
-        </h1>
-        <p className="text-sm sm:text-base text-[#666666] leading-relaxed">
-          The official platform for signing into <i>Upper Cafe</i> and checking teacher attendance at Bergen County Academies.
-        </p>
-      </header>
-
-      <section className="space-y-4">
-        <div className="text-xs uppercase tracking-wider text-[#666666] font-semibold">
-          Account Sign-In
+    <main className="w-full max-w-md mx-auto px-6 py-24 sm:py-32 flex flex-col justify-center min-h-[calc(100vh-140px)]">
+      <div className="flex flex-col items-center text-center space-y-8">
+        {/* Brand Header */}
+        <div className="space-y-2">
+          <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight text-[#111111]">
+            bcaupper.cafe
+          </h1>
+          <p className="text-xs sm:text-sm text-[#666666]">
+            Sign in to continue
+          </p>
         </div>
 
-        <button
-          onClick={handleOutlookLogin}
-          disabled={submitting || isLoading}
-          className="w-full h-14 btn-minimal-primary flex items-center justify-center gap-3 text-base"
-        >
-          <svg className="w-4 h-4 flex-shrink-0" viewBox="0 0 21 21">
-            <rect x="1" y="1" width="9" height="9" fill="#F25022" />
-            <rect x="11" y="1" width="9" height="9" fill="#7FBA00" />
-            <rect x="1" y="11" width="9" height="9" fill="#00A4EF" />
-            <rect x="11" y="11" width="9" height="9" fill="#FFB900" />
-          </svg>
-          <span>Sign in with Outlook</span>
-        </button>
-
-        <p className="text-xs sm:text-sm text-[#888888]">
-          Your account name is retrieved directly from Microsoft Outlook and cannot be altered.
-        </p>
-      </section>
-
-      <section className="space-y-3 pt-6 border-t border-[#eaeaea]">
-        <div className="text-xs uppercase tracking-wider text-[#666666] font-semibold">
-          Development Preview &amp; Role Testing
+        {/* Official Microsoft Sign In Button */}
+        <div className="w-full flex justify-center pt-1">
+          <button
+            onClick={handleOutlookLogin}
+            disabled={submitting || isLoading}
+            className="inline-flex items-center justify-center p-0 border-0 bg-transparent cursor-pointer hover:opacity-90 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed select-none"
+            aria-label="Sign in with Microsoft"
+          >
+            {/* Official Microsoft vector lockup asset directly from Microsoft Identity Platform */}
+            <img
+              src="/ms-symbollockup_signin_dark.svg"
+              alt="Sign in with Microsoft"
+              className="h-[42px] w-auto max-w-full drop-shadow-sm"
+            />
+          </button>
         </div>
-        <ul className="text-xs sm:text-sm text-[#666666] space-y-2">
-          <li>
+
+        {/* Development & Preview Testing */}
+        <div className="w-full pt-10 border-t border-[#eaeaea]/80 space-y-3">
+          <div className="text-[11px] uppercase tracking-wider text-[#888888] font-medium text-center">
+            Demo Environments
+          </div>
+
+          <div className="grid grid-cols-2 gap-2.5">
             <button
+              type="button"
               onClick={() => handleDevLogin('student', 'Kabir Sekhon')}
-              className="text-[#111111] underline underline-offset-3 decoration-[#d1d1d1] hover:decoration-[#111111] cursor-pointer"
+              disabled={submitting || isLoading}
+              className="p-3 text-left rounded-lg border border-[#eaeaea] bg-[#fafafa] hover:border-[#111111] hover:bg-white transition-all cursor-pointer group"
             >
-              Sign in as Student (Kabir Sekhon) &rarr;
+              <div className="text-xs font-semibold text-[#111111] group-hover:underline">
+                Student &rarr;
+              </div>
+              <div className="text-[10px] text-[#666666] mt-0.5 truncate font-mono">
+                Kabir Sekhon
+              </div>
             </button>
-          </li>
-          <li>
+
             <button
+              type="button"
               onClick={() => handleDevLogin('staff', 'Dr. Robert Degan')}
-              className="text-[#111111] underline underline-offset-3 decoration-[#d1d1d1] hover:decoration-[#111111] cursor-pointer"
+              disabled={submitting || isLoading}
+              className="p-3 text-left rounded-lg border border-[#eaeaea] bg-[#fafafa] hover:border-[#111111] hover:bg-white transition-all cursor-pointer group"
             >
-              Sign in as Staff / Admin (Dr. Robert Degan) &rarr;
+              <div className="text-xs font-semibold text-[#111111] group-hover:underline">
+                Admin &rarr;
+              </div>
+              <div className="text-[10px] text-[#666666] mt-0.5 truncate font-mono">
+                Dr. Degan
+              </div>
             </button>
-          </li>
-        </ul>
-      </section>
+          </div>
+        </div>
+      </div>
     </main>
   );
 }
