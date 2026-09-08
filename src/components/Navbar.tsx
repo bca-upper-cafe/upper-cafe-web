@@ -9,6 +9,10 @@ export const Navbar: React.FC = () => {
   const pathname = usePathname();
   const { user, logout } = useAuth();
 
+  if (pathname === '/login') {
+    return null;
+  }
+
   return (
     <header className="bg-white border-b border-[#eaeaea] sticky top-0 z-40">
       <div className="max-w-7xl mx-auto px-6 sm:px-10 lg:px-12 h-14 flex items-center justify-between gap-4">
